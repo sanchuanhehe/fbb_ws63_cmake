@@ -336,14 +336,6 @@ int32_t osKernelUnlock (void);
 /// \return new lock state (1 - locked, 0 - not locked, error code if negative).
 int32_t osKernelRestoreLock (int32_t lock);
  
-/// Suspend the RTOS Kernel scheduler.
-/// \return time in ticks, for how long the system can sleep or power-down.
-uint32_t osKernelSuspend (void);
- 
-/// Resume the RTOS Kernel scheduler.
-/// \param[in]     sleep_ticks   time in ticks for how long the system was in sleep or power-down mode.
-void osKernelResume (uint32_t sleep_ticks);
- 
 /// Get the RTOS kernel tick count.
 /// \return RTOS kernel current tick count.
 uint32_t osKernelGetTickCount (void);
@@ -444,12 +436,6 @@ osStatus_t osThreadTerminate (osThreadId_t thread_id);
 /// Get number of active threads.
 /// \return number of active threads.
 uint32_t osThreadGetCount (void);
- 
-/// Enumerate active threads.
-/// \param[out]    thread_array  pointer to array for retrieving thread IDs.
-/// \param[in]     array_items   maximum number of items in array for retrieving thread IDs.
-/// \return number of enumerated threads.
-uint32_t osThreadEnumerate (osThreadId_t *thread_array, uint32_t array_items);
  
  
 //  ==== Thread Flags Functions ====
@@ -640,58 +626,6 @@ uint32_t osSemaphoreGetCount (osSemaphoreId_t semaphore_id);
 osStatus_t osSemaphoreDelete (osSemaphoreId_t semaphore_id);
  
  
-//  ==== Memory Pool Management Functions ====
- 
-/// Create and Initialize a Memory Pool object.
-/// \param[in]     block_count   maximum number of memory blocks in memory pool.
-/// \param[in]     block_size    memory block size in bytes.
-/// \param[in]     attr          memory pool attributes; NULL: default values.
-/// \return memory pool ID for reference by other functions or NULL in case of error.
-osMemoryPoolId_t osMemoryPoolNew (uint32_t block_count, uint32_t block_size, const osMemoryPoolAttr_t *attr);
- 
-/// Get name of a Memory Pool object.
-/// \param[in]     mp_id         memory pool ID obtained by \ref osMemoryPoolNew.
-/// \return name as null-terminated string.
-const char *osMemoryPoolGetName (osMemoryPoolId_t mp_id);
- 
-/// Allocate a memory block from a Memory Pool.
-/// \param[in]     mp_id         memory pool ID obtained by \ref osMemoryPoolNew.
-/// \param[in]     timeout       \ref CMSIS_RTOS_TimeOutValue or 0 in case of no time-out.
-/// \return address of the allocated memory block or NULL in case of no memory is available.
-void *osMemoryPoolAlloc (osMemoryPoolId_t mp_id, uint32_t timeout);
- 
-/// Return an allocated memory block back to a Memory Pool.
-/// \param[in]     mp_id         memory pool ID obtained by \ref osMemoryPoolNew.
-/// \param[in]     block         address of the allocated memory block to be returned to the memory pool.
-/// \return status code that indicates the execution status of the function.
-osStatus_t osMemoryPoolFree (osMemoryPoolId_t mp_id, void *block);
- 
-/// Get maximum number of memory blocks in a Memory Pool.
-/// \param[in]     mp_id         memory pool ID obtained by \ref osMemoryPoolNew.
-/// \return maximum number of memory blocks.
-uint32_t osMemoryPoolGetCapacity (osMemoryPoolId_t mp_id);
- 
-/// Get memory block size in a Memory Pool.
-/// \param[in]     mp_id         memory pool ID obtained by \ref osMemoryPoolNew.
-/// \return memory block size in bytes.
-uint32_t osMemoryPoolGetBlockSize (osMemoryPoolId_t mp_id);
- 
-/// Get number of memory blocks used in a Memory Pool.
-/// \param[in]     mp_id         memory pool ID obtained by \ref osMemoryPoolNew.
-/// \return number of memory blocks used.
-uint32_t osMemoryPoolGetCount (osMemoryPoolId_t mp_id);
- 
-/// Get number of memory blocks available in a Memory Pool.
-/// \param[in]     mp_id         memory pool ID obtained by \ref osMemoryPoolNew.
-/// \return number of memory blocks available.
-uint32_t osMemoryPoolGetSpace (osMemoryPoolId_t mp_id);
- 
-/// Delete a Memory Pool object.
-/// \param[in]     mp_id         memory pool ID obtained by \ref osMemoryPoolNew.
-/// \return status code that indicates the execution status of the function.
-osStatus_t osMemoryPoolDelete (osMemoryPoolId_t mp_id);
- 
- 
 //  ==== Message Queue Management Functions ====
  
 /// Create and Initialize a Message Queue object.
@@ -741,11 +675,6 @@ uint32_t osMessageQueueGetCount (osMessageQueueId_t mq_id);
 /// \param[in]     mq_id         message queue ID obtained by \ref osMessageQueueNew.
 /// \return number of available slots for messages.
 uint32_t osMessageQueueGetSpace (osMessageQueueId_t mq_id);
- 
-/// Reset a Message Queue to initial empty state.
-/// \param[in]     mq_id         message queue ID obtained by \ref osMessageQueueNew.
-/// \return status code that indicates the execution status of the function.
-osStatus_t osMessageQueueReset (osMessageQueueId_t mq_id);
  
 /// Delete a Message Queue object.
 /// \param[in]     mq_id         message queue ID obtained by \ref osMessageQueueNew.
