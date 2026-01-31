@@ -122,9 +122,9 @@
 
 - A. 点击“新建工程”，根据提示填写对应信息，芯片选择“WS63”， 工程类型选择“普通工程”，工程名填写“demo”。
 
-![image-20250716163414703](../vendor/HiHope_NearLink_DK_WS63E_V03/doc/media/readme/image-20250716163414703.png)
+![image-20260131140546273](../vendor/HiHope_NearLink_DK_WS63E_V03/doc/media/readme/image-20260131140546273.png)
 
-- B. 工程路径选择“xxx/src”目录，软件包选择"xxx/src"（注意：路径选择需要选到src目录以下），路径为“fbb_ws63-master/src”目录，点击“选择文件夹”。
+- B. 工程路径选择“f:/project”目录，软件包选择"g:/fbb_ws63/src"（注意：路径选择需要选到src目录以下），点击“选择文件夹”。
 
 ![image-20251021155638209](../vendor/HiHope_NearLink_DK_WS63E_V03/doc/media/tools/image-20251021155638209.png)
 
