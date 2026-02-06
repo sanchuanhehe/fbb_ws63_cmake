@@ -319,5 +319,14 @@
     "key":"13",
     "name":"sle_one_to_many",
     "description":"SLE一对多"
+  }, {
+    "buildTarget": "ws63-liteos-app",
+    "relativePath": "demo/lcd_st7796",
+    "chip": "WS63",
+    "buildDef": "",
+    "needSmoke": "false",
+    "key":"26",
+    "name":"lcd_st7796",
+    "description":"lcd st7796屏幕 + lvgl + LiteOs样例"
   }
 ]

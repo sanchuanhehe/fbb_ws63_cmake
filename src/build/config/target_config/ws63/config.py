@@ -90,7 +90,8 @@ target = {
             "coap",
             "sle_netdev", "chba_at",
             "tiot_driver",
-            "mqtt"
+            "mqtt",
+            "lvgl"
         ],
         'ccflags': [
             "-DBOARD_ASIC", '-DPRE_ASIC',
