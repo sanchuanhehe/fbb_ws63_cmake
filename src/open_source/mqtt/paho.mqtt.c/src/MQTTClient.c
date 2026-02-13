@@ -644,10 +644,15 @@ int MQTTClient_createWithOptions(MQTTClient* handle, const char* serverURI, cons
 	}
 	else if (strncmp(URI_MQTTS, serverURI, strlen(URI_MQTTS)) == 0)
 	{
-#if defined(OPENSSL)
+#if defined(OPENSSL) || defined(MBEDTLS)
 		serverURI += strlen(URI_MQTTS);
 		m->ssl = 1;
 #else
+#if defined(IOT_CONNECT) || defined(IOT_LITEOS_ADAPT)
+		free(m);
+		if (bstate->clients->count == 0)
+			MQTTClient_terminate();
+#endif
 		rc = MQTTCLIENT_SSL_NOT_SUPPORTED;
 		goto exit;
 #endif
