@@ -135,14 +135,17 @@ if(EXISTS ${KCONFIG_PATH})
 endif()
 
 if(DEFINED FBB_TARGET AND NOT "${FBB_TARGET}" STREQUAL "")
-    add_custom_target(build-contract
+    add_custom_command(
+        OUTPUT ${FBB_CONTRACT_FILE}
         COMMAND ${PY_PATH} ${ROOT_DIR}/build/script/export_build_contract.py
             --target-env-json ${_FBB_TARGET_JSON}
             --cmake-binary-dir ${CMAKE_BINARY_DIR}
             --out ${FBB_CONTRACT_FILE}
         WORKING_DIRECTORY ${ROOT_DIR}
-        BYPRODUCTS ${FBB_CONTRACT_FILE}
         VERBATIM
+    )
+    add_custom_target(build-contract
+        DEPENDS ${FBB_CONTRACT_FILE}
     )
 
     set(_KCONFIG_HEADER "${PROJECT_BINARY_DIR}/mconfig.h")
@@ -238,9 +241,15 @@ if(DEFINED FBB_TARGET AND NOT "${FBB_TARGET}" STREQUAL "")
     if(TARGET BUILD_ROM_CALLBACK)
         add_custom_target(postbuild-rom-callback DEPENDS BUILD_ROM_CALLBACK)
     else()
-        add_custom_target(postbuild-rom-callback
+        set(_ROM_CB_FALLBACK_STAMP "${PROJECT_BINARY_DIR}/postbuild_rom_callback_disabled.stamp")
+        add_custom_command(
+            OUTPUT ${_ROM_CB_FALLBACK_STAMP}
             COMMAND ${CMAKE_COMMAND} -E echo "BUILD_ROM_CALLBACK target is not enabled for ${FBB_TARGET}"
+            COMMAND ${CMAKE_COMMAND} -E touch ${_ROM_CB_FALLBACK_STAMP}
             VERBATIM
+        )
+        add_custom_target(postbuild-rom-callback
+            DEPENDS ${_ROM_CB_FALLBACK_STAMP}
         )
     endif()
 
@@ -272,28 +281,47 @@ include("${CMAKE_DIR}/open_source.cmake")
 include("${CMAKE_DIR}/build_linker.cmake")
 
 if (NOT DEFINED ROM_COMPONENT)
-add_custom_target(GENERAT_BIN ALL
+set(GENERAT_BIN_OUT ${PROJECT_BINARY_DIR}/${BIN_NAME}.bin)
+add_custom_command(
+    OUTPUT ${GENERAT_BIN_OUT}
     COMMAND ${CMAKE_OBJCOPY} --gap-fill 0xFF -O binary -R .fls_loader_ram -R .logstr -R .ARM -R .ARM ${BIN_NAME}.elf ${BIN_NAME}.bin
     COMMENT "post_build:gen bin file"
     WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
     DEPENDS ${TARGET_NAME}
+    VERBATIM
+)
+add_custom_target(GENERAT_BIN ALL
+    DEPENDS ${GENERAT_BIN_OUT}
 )
 else()
-add_custom_target(GENERAT_BIN ALL
+set(GENERAT_BIN_RAM_OUT ${PROJECT_BINARY_DIR}/${TARGET_NAME}.bin)
+set(GENERAT_BIN_ROM_OUT ${PROJECT_BINARY_DIR}/${TARGET_NAME}_rom.bin)
+add_custom_command(
+    OUTPUT ${GENERAT_BIN_RAM_OUT} ${GENERAT_BIN_ROM_OUT}
     COMMAND ${CMAKE_OBJCOPY} --gap-fill 0xFF -O binary -R .logstr -R .ARM.exidx -R .ARM.extab -R .*_romtext ${TARGET_NAME}.elf ${TARGET_NAME}.bin
     COMMAND ${CMAKE_OBJCOPY} --gap-fill 0xFF -O binary -j .*_romtext ${TARGET_NAME}.elf ${TARGET_NAME}_rom.bin
     COMMENT "post_build:gen rom and ram bin file"
     WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
     DEPENDS ${TARGET_NAME}
+    VERBATIM
+)
+add_custom_target(GENERAT_BIN ALL
+    DEPENDS ${GENERAT_BIN_RAM_OUT} ${GENERAT_BIN_ROM_OUT}
 )
 endif()
 
 if(DEFINED CONFIG_SFC_SUPPORT_RWE_INDEPENDENT)
-add_custom_target(GENERAT_FLASH_DRIVER_BIN ALL
+set(GENERAT_FLASH_DRIVER_BIN_OUT ${PROJECT_BINARY_DIR}/BOOTLOADERFlsDrv.signed.s19)
+add_custom_command(
+    OUTPUT ${GENERAT_FLASH_DRIVER_BIN_OUT}
     COMMAND ${CMAKE_OBJCOPY} -O srec --srec-len=0x20 --srec-forceS3 -S -j .fls_loader_ram ${BIN_NAME}.elf BOOTLOADERFlsDrv.signed.s19
     COMMENT "post_build:gen flash driver bin file"
     WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
     DEPENDS ${TARGET_NAME}
+    VERBATIM
+)
+add_custom_target(GENERAT_FLASH_DRIVER_BIN ALL
+    DEPENDS ${GENERAT_FLASH_DRIVER_BIN_OUT}
 )
 endif()
 
