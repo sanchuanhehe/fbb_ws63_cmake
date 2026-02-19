@@ -362,6 +362,7 @@ def make_all_in_one_packet(pack_style_str, extr_defines):
             print("packet app")
             fpga_fwpkg = os.path.join(fwpkg_outdir, f"{pack_style_str}_all.fwpkg")
             packet_bin(fpga_fwpkg, packet_post_agvs)
+            add_output(fpga_fwpkg)
 
         if ("PACKET_MFG_BIN" in extr_defines or double_fwpkg) and "SUPPORT_EFUSE" not in extr_defines:
             print("efuse pack")
@@ -427,6 +428,7 @@ def make_all_in_one_packet(pack_style_str, extr_defines):
                     "inputs": sorted(set(manifest_inputs)),
                     "command": sys.argv,
                     "outputs": sorted(set(output_files)),
+                    "produced_files": sorted(set(output_files)),
                     "success": True,
                     "exit_code": 0,
                     "fwpkg_outdir": os.path.abspath(fwpkg_outdir)

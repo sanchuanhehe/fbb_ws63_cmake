@@ -479,7 +479,8 @@ manifest_data = {
     "exit_code": 0,
     "output_root": out_put,
     "pktbin": pktbin,
-    "outputs": sorted(generated_outputs)
+    "outputs": sorted(generated_outputs),
+    "produced_files": sorted(generated_outputs)
 }
 with open(manifest_path, "w", encoding="utf-8") as manifest_file:
     json.dump(manifest_data, manifest_file, indent=2, ensure_ascii=False)

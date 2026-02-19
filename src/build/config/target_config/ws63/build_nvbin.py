@@ -106,6 +106,7 @@ if __name__ == '__main__':
             "inputs": sorted(set(input_files)),
             "command": sys.argv,
             "outputs": produced_bins,
+            "produced_files": produced_bins,
             "success": True,
             "exit_code": 0,
             "runtime_config": os.path.abspath(runtime_nv_cfg),

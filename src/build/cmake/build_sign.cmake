@@ -138,6 +138,7 @@ set(WS63_SIGN_MANIFEST ${OUTPUT_ROOT}/${CHIP}/${CORE}/sign_manifest/${TARGET_NAM
 add_custom_command(
     OUTPUT ${WS63_SIGN_MANIFEST}
     COMMAND ${CMAKE_COMMAND} -E env
+        FBB_SIGN_INPUT_MANIFEST=${FBB_CONTRACT_FILE}
         FBB_OUTPUT_ROOT=${OUTPUT_ROOT}
         FBB_CHIP=${CHIP}
         FBB_CORE=${CORE}
@@ -145,7 +146,7 @@ add_custom_command(
         ${Python3_EXECUTABLE} ${ROOT_DIR}/build/config/target_config/${CHIP}/sign_config/params_and_bin_sign.py ${TARGET_NAME}
     COMMENT "ws63 image sign"
     WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
-    DEPENDS GENERAT_BIN ${GENERAT_ROM_PATCH} ${ROOT_DIR}/build/config/target_config/${CHIP}/sign_config/params_and_bin_sign.py
+    DEPENDS GENERAT_BIN ${GENERAT_ROM_PATCH} ${FBB_CONTRACT_FILE} ${ROOT_DIR}/build/config/target_config/${CHIP}/sign_config/params_and_bin_sign.py
     VERBATIM
 )
 add_custom_target(WS63_GENERAT_SIGNBIN ALL

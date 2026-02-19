@@ -242,10 +242,11 @@ if(DEFINED FBB_TARGET AND NOT "${FBB_TARGET}" STREQUAL "")
                     FBB_OUTPUT_ROOT=${OUTPUT_ROOT}
                     FBB_CHIP=${CHIP}
                     FBB_CORE=${CORE}
+                    FBB_SIGN_INPUT_MANIFEST=${FBB_CONTRACT_FILE}
                     FBB_SIGN_MANIFEST=${_PREPACKAGE_BOOT_MANIFEST}
                     ${Python3_EXECUTABLE} ${ROOT_DIR}/build/config/target_config/${CHIP}/sign_config/params_and_bin_sign.py ${TARGET_NAME}
             WORKING_DIRECTORY ${ROOT_DIR}
-            DEPENDS ${TARGET_NAME} GENERAT_BIN ${ROOT_DIR}/build/config/target_config/${CHIP}/sign_config/params_and_bin_sign.py
+                DEPENDS ${TARGET_NAME} GENERAT_BIN ${FBB_CONTRACT_FILE} ${ROOT_DIR}/build/config/target_config/${CHIP}/sign_config/params_and_bin_sign.py
             VERBATIM
         )
         add_custom_target(prepackage-bootloaders DEPENDS ${_PREPACKAGE_BOOT_MANIFEST} ${_PREPACKAGE_FLASHBOOT_BIN} ${_PREPACKAGE_LOADERBOOT_BIN})
@@ -285,10 +286,11 @@ if(DEFINED FBB_TARGET AND NOT "${FBB_TARGET}" STREQUAL "")
                 COMMAND ${CMAKE_COMMAND} -E env
                         FBB_OUTPUT_ROOT=${OUTPUT_ROOT}
                         FBB_CHIP=${CHIP}
+                        FBB_FOTA_INPUT_MANIFEST=${FBB_CONTRACT_FILE}
                         FBB_FOTA_MANIFEST=${_FOTA_MANIFEST}
                         ${Python3_EXECUTABLE} ${_FOTA_SCRIPT} ${PKG_TARGET_NAME} ${UPG_PKG}
                 WORKING_DIRECTORY ${ROOT_DIR}
-                DEPENDS ${TARGET_NAME} GENERAT_BIN ${_FOTA_SCRIPT}
+                DEPENDS ${TARGET_NAME} GENERAT_BIN ${FBB_CONTRACT_FILE} ${_FOTA_SCRIPT}
                 BYPRODUCTS ${OUTPUT_ROOT}/${CHIP}/upgrade
                 VERBATIM
             )

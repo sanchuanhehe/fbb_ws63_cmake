@@ -85,11 +85,12 @@ if(${NV_UPDATE})
             FBB_OUTPUT_ROOT=${PROJECT_BINARY_DIR}
             FBB_CHIP=${CHIP}
             FBB_CORE=${CORE}
+            FBB_NV_INPUT_MANIFEST=${FBB_CONTRACT_FILE}
             FBB_NV_MANIFEST=${NV_UPDATE_MANIFEST}
             ${Python3_EXECUTABLE} ${ROOT_DIR}/build/config/target_config/${CHIP}/build_nvbin.py ${TARGET_NAME}
         COMMENT "update nv bin"
         WORKING_DIRECTORY ${ROOT_DIR}
-        DEPENDS GENERAT_BIN ${NV_UPDATE_EXTRA_DEPENDS} ${ROOT_DIR}/build/config/target_config/${CHIP}/build_nvbin.py
+        DEPENDS GENERAT_BIN ${NV_UPDATE_EXTRA_DEPENDS} ${FBB_CONTRACT_FILE} ${ROOT_DIR}/build/config/target_config/${CHIP}/build_nvbin.py
         VERBATIM
     )
     list(APPEND NV_STAGE_OUTPUTS ${NV_UPDATE_MANIFEST})

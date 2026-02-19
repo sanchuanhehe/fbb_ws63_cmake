@@ -238,6 +238,7 @@ if __name__ == '__main__':
                 "inputs": sorted(set(input_files)),
                 "command": sys.argv,
                 "outputs": produced_files,
+                "produced_files": produced_files,
                 "success": True,
                 "exit_code": 0,
                 "output_root": os.path.abspath(info.output_root),
