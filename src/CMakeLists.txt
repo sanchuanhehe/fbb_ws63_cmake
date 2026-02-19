@@ -7,6 +7,10 @@ set(CMAKE_SYSTEM_NAME "Generic")
 
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 
+set(BUILD_INFRA_DIR "${CMAKE_CURRENT_LIST_DIR}/infra_build")
+set(BUILD_INFRA_SCRIPT_DIR "${BUILD_INFRA_DIR}/script")
+set(BUILD_INFRA_CONFIG_DIR "${BUILD_INFRA_DIR}/config")
+
 set(FBB_EXTRA_DEFINES "" CACHE STRING "Extra defines passed to packaging scripts")
 
 if(NOT DEFINED PY_PATH OR "${PY_PATH}" STREQUAL "")
@@ -21,7 +25,7 @@ if(DEFINED FBB_TARGET AND NOT "${FBB_TARGET}" STREQUAL "")
     set(_FBB_TARGET_CMAKE "${_FBB_GEN_DIR}/target_env.cmake")
 
     execute_process(
-        COMMAND ${PY_PATH} ${CMAKE_CURRENT_LIST_DIR}/build/script/export_target_env.py
+        COMMAND ${PY_PATH} ${BUILD_INFRA_SCRIPT_DIR}/export_target_env.py
             --target ${FBB_TARGET}
             --json-out ${_FBB_TARGET_JSON}
             --cmake-out ${_FBB_TARGET_CMAKE}
@@ -43,7 +47,7 @@ if(DEFINED FBB_TARGET AND NOT "${FBB_TARGET}" STREQUAL "")
 
     set(FBB_CONTRACT_FILE "${CMAKE_BINARY_DIR}/fbb_contract.json")
     execute_process(
-        COMMAND ${PY_PATH} ${CMAKE_CURRENT_LIST_DIR}/build/script/export_build_contract.py
+        COMMAND ${PY_PATH} ${BUILD_INFRA_SCRIPT_DIR}/export_build_contract.py
             --target-env-json ${_FBB_TARGET_JSON}
             --cmake-binary-dir ${CMAKE_BINARY_DIR}
             --out ${FBB_CONTRACT_FILE}
@@ -80,7 +84,7 @@ set(AUTO_DEF_MODULE_ID TRUE)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
 get_filename_component(ROOT_DIR  "${PROJECT_SOURCE_DIR}" ABSOLUTE)
-set(CMAKE_DIR "${ROOT_DIR}/build/cmake")
+set(CMAKE_DIR "${ROOT_DIR}/infra_build/cmake")
 set(BIN_DIR   "${ROOT_DIR}/interim_binary")
 
 include("${CMAKE_DIR}/build_function.cmake")
@@ -98,13 +102,13 @@ if(EXISTS "${ROOT_DIR}/kernel/liteos/liteos_v208.5.0/${TARGET_COMMAND}")
 endif ()
 
 if(${BUILD_TYPE} STREQUAL "UT")
-    KCONFIG_GET_PARAMS("${ROOT_DIR}/build/menuconfig/test/platform/ut.config")
+    KCONFIG_GET_PARAMS("${ROOT_DIR}/infra_build/menuconfig/test/platform/ut.config")
     include("${CMAKE_DIR}/build_ut.cmake")
     return()
 endif()
 
 if(${BUILD_TYPE} STREQUAL "FUZZ")
-    KCONFIG_GET_PARAMS("${ROOT_DIR}/build/menuconfig/test/platform/ut.config")
+    KCONFIG_GET_PARAMS("${ROOT_DIR}/infra_build/menuconfig/test/platform/ut.config")
     include("${CMAKE_DIR}/build_fuzz.cmake")
     return()
 endif()
@@ -128,7 +132,7 @@ if(${BUILD_ROM_CALLBACK})
     build_rom_callback()
 endif()
 
-set(KCONFIG_PATH "${ROOT_DIR}/build/config/target_config/${CHIP}/menuconfig/${CORE}/${BUILD_TARGET_NAME}.config")
+set(KCONFIG_PATH "${ROOT_DIR}/infra_build/config/target_config/${CHIP}/menuconfig/${CORE}/${BUILD_TARGET_NAME}.config")
 if(EXISTS ${KCONFIG_PATH})
     KCONFIG_GET_PARAMS(${KCONFIG_PATH})
     set(USE_KCONFIG True)
@@ -137,7 +141,7 @@ endif()
 if(DEFINED FBB_TARGET AND NOT "${FBB_TARGET}" STREQUAL "")
     add_custom_command(
         OUTPUT ${FBB_CONTRACT_FILE}
-        COMMAND ${PY_PATH} ${ROOT_DIR}/build/script/export_build_contract.py
+        COMMAND ${PY_PATH} ${ROOT_DIR}/infra_build/script/export_build_contract.py
             --target-env-json ${_FBB_TARGET_JSON}
             --cmake-binary-dir ${CMAKE_BINARY_DIR}
             --out ${FBB_CONTRACT_FILE}
@@ -150,7 +154,7 @@ if(DEFINED FBB_TARGET AND NOT "${FBB_TARGET}" STREQUAL "")
 
     set(_KCONFIG_HEADER "${PROJECT_BINARY_DIR}/mconfig.h")
     execute_process(
-        COMMAND ${Python3_EXECUTABLE} ${ROOT_DIR}/build/script/usr_config.py --command savemenuconfig --chip ${CHIP} --core ${CORE} --target ${PKG_TARGET_NAME} --output ${PROJECT_BINARY_DIR}
+        COMMAND ${Python3_EXECUTABLE} ${ROOT_DIR}/infra_build/script/usr_config.py --command savemenuconfig --chip ${CHIP} --core ${CORE} --target ${PKG_TARGET_NAME} --output ${PROJECT_BINARY_DIR}
         WORKING_DIRECTORY ${ROOT_DIR}
         RESULT_VARIABLE _KCONFIG_HEADER_RESULT
     )
@@ -159,20 +163,20 @@ if(DEFINED FBB_TARGET AND NOT "${FBB_TARGET}" STREQUAL "")
     endif()
     add_custom_command(
         OUTPUT ${_KCONFIG_HEADER}
-        COMMAND ${Python3_EXECUTABLE} ${ROOT_DIR}/build/script/usr_config.py --command savemenuconfig --chip ${CHIP} --core ${CORE} --target ${PKG_TARGET_NAME} --output ${PROJECT_BINARY_DIR}
+        COMMAND ${Python3_EXECUTABLE} ${ROOT_DIR}/infra_build/script/usr_config.py --command savemenuconfig --chip ${CHIP} --core ${CORE} --target ${PKG_TARGET_NAME} --output ${PROJECT_BINARY_DIR}
         COMMAND ${CMAKE_COMMAND} -E touch ${_KCONFIG_HEADER}
         WORKING_DIRECTORY ${ROOT_DIR}
-        DEPENDS ${ROOT_DIR}/build/script/usr_config.py
+        DEPENDS ${ROOT_DIR}/infra_build/script/usr_config.py
         VERBATIM
     )
 
     set(_KCONFIG_MENUCONFIG_STAMP "${PROJECT_BINARY_DIR}/kconfig_menuconfig.stamp")
     add_custom_command(
         OUTPUT ${_KCONFIG_MENUCONFIG_STAMP}
-        COMMAND ${Python3_EXECUTABLE} ${ROOT_DIR}/build/script/usr_config.py --command menuconfig --chip ${CHIP} --core ${CORE} --target ${PKG_TARGET_NAME} --output ${PROJECT_BINARY_DIR}
+        COMMAND ${Python3_EXECUTABLE} ${ROOT_DIR}/infra_build/script/usr_config.py --command menuconfig --chip ${CHIP} --core ${CORE} --target ${PKG_TARGET_NAME} --output ${PROJECT_BINARY_DIR}
         COMMAND ${CMAKE_COMMAND} -E touch ${_KCONFIG_MENUCONFIG_STAMP}
         WORKING_DIRECTORY ${ROOT_DIR}
-        DEPENDS ${ROOT_DIR}/build/script/usr_config.py
+        DEPENDS ${ROOT_DIR}/infra_build/script/usr_config.py
         USES_TERMINAL
         VERBATIM
     )
@@ -184,10 +188,10 @@ if(DEFINED FBB_TARGET AND NOT "${FBB_TARGET}" STREQUAL "")
     add_custom_command(
         OUTPUT ${_KCONFIG_DEFCONFIG_STATE}
         COMMAND ${CMAKE_COMMAND} -E make_directory ${PROJECT_BINARY_DIR}/kconfig_state
-        COMMAND ${Python3_EXECUTABLE} ${ROOT_DIR}/build/script/usr_config.py --command defconfig --chip ${CHIP} --core ${CORE} --target ${PKG_TARGET_NAME} --output ${PROJECT_BINARY_DIR}
+        COMMAND ${Python3_EXECUTABLE} ${ROOT_DIR}/infra_build/script/usr_config.py --command defconfig --chip ${CHIP} --core ${CORE} --target ${PKG_TARGET_NAME} --output ${PROJECT_BINARY_DIR}
         COMMAND ${CMAKE_COMMAND} -E touch ${_KCONFIG_DEFCONFIG_STATE}
         WORKING_DIRECTORY ${ROOT_DIR}
-        DEPENDS ${ROOT_DIR}/build/script/usr_config.py
+        DEPENDS ${ROOT_DIR}/infra_build/script/usr_config.py
         USES_TERMINAL
         VERBATIM
     )
@@ -199,10 +203,10 @@ if(DEFINED FBB_TARGET AND NOT "${FBB_TARGET}" STREQUAL "")
     add_custom_command(
         OUTPUT ${_KCONFIG_RELOAD_STATE}
         COMMAND ${CMAKE_COMMAND} -E make_directory ${PROJECT_BINARY_DIR}/kconfig_state
-        COMMAND ${Python3_EXECUTABLE} ${ROOT_DIR}/build/script/usr_config.py --command reloadconfig --chip ${CHIP} --core ${CORE} --target ${PKG_TARGET_NAME} --output ${PROJECT_BINARY_DIR}
+        COMMAND ${Python3_EXECUTABLE} ${ROOT_DIR}/infra_build/script/usr_config.py --command reloadconfig --chip ${CHIP} --core ${CORE} --target ${PKG_TARGET_NAME} --output ${PROJECT_BINARY_DIR}
         COMMAND ${CMAKE_COMMAND} -E touch ${_KCONFIG_RELOAD_STATE}
         WORKING_DIRECTORY ${ROOT_DIR}
-        DEPENDS ${ROOT_DIR}/build/script/usr_config.py
+        DEPENDS ${ROOT_DIR}/infra_build/script/usr_config.py
         USES_TERMINAL
         VERBATIM
     )
@@ -244,9 +248,9 @@ if(DEFINED FBB_TARGET AND NOT "${FBB_TARGET}" STREQUAL "")
                     FBB_CORE=${CORE}
                     FBB_SIGN_INPUT_MANIFEST=${FBB_CONTRACT_FILE}
                     FBB_SIGN_MANIFEST=${_PREPACKAGE_BOOT_MANIFEST}
-                    ${Python3_EXECUTABLE} ${ROOT_DIR}/build/config/target_config/${CHIP}/sign_config/params_and_bin_sign.py ${TARGET_NAME}
+                    ${Python3_EXECUTABLE} ${ROOT_DIR}/infra_build/config/target_config/${CHIP}/sign_config/params_and_bin_sign.py ${TARGET_NAME}
             WORKING_DIRECTORY ${ROOT_DIR}
-                DEPENDS ${TARGET_NAME} GENERAT_BIN ${FBB_CONTRACT_FILE} ${ROOT_DIR}/build/config/target_config/${CHIP}/sign_config/params_and_bin_sign.py
+                DEPENDS ${TARGET_NAME} GENERAT_BIN ${FBB_CONTRACT_FILE} ${ROOT_DIR}/infra_build/config/target_config/${CHIP}/sign_config/params_and_bin_sign.py
             VERBATIM
         )
         add_custom_target(prepackage-bootloaders DEPENDS ${_PREPACKAGE_BOOT_MANIFEST} ${_PREPACKAGE_FLASHBOOT_BIN} ${_PREPACKAGE_LOADERBOOT_BIN})
@@ -278,7 +282,7 @@ if(DEFINED FBB_TARGET AND NOT "${FBB_TARGET}" STREQUAL "")
     endif()
 
     if(DEFINED UPG_PKG AND NOT "${UPG_PKG}" STREQUAL "")
-        set(_FOTA_SCRIPT ${ROOT_DIR}/build/config/target_config/${CHIP}/build_${CHIP}_update.py)
+        set(_FOTA_SCRIPT ${ROOT_DIR}/infra_build/config/target_config/${CHIP}/build_${CHIP}_update.py)
         if(EXISTS ${_FOTA_SCRIPT})
             set(_FOTA_MANIFEST "${OUTPUT_ROOT}/${CHIP}/upgrade/fota_manifest/${PKG_TARGET_NAME}.json")
             add_custom_command(

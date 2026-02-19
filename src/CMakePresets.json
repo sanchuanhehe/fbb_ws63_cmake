@@ -10,10 +10,11 @@
       "name": "ws63-base",
       "displayName": "WS63 Base",
       "generator": "Ninja",
-      "binaryDir": "${sourceDir}/.build/cmake/${presetName}",
+      "binaryDir": "${sourceDir}/build",
       "cacheVariables": {
         "FBB_TARGET": "ws63-liteos-app",
-        "FBB_BUILD_LEVEL": "normal"
+        "FBB_BUILD_LEVEL": "normal",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       }
     },
     {

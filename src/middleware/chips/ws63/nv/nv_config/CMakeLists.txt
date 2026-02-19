@@ -19,7 +19,7 @@ set(TARGET_INCLUDE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${ROOT_DIR}/middleware/utils/common_headers/native)
 set(BUILD_GEN_UTILS
-        ${ROOT_DIR}/build/script/nv/generate_utils.py)
+    ${ROOT_DIR}/infra_build/script/nv/generate_utils.py)
 set(TARGET_DEFINES
     -DCONFIG_NV_SUPPORT_SINGLE_CORE_SYSTEM)
 

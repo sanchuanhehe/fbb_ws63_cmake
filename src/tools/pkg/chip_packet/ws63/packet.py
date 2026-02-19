@@ -23,8 +23,8 @@ from packet_create import packet_bin
 
 TOOLS_DIR = os.path.dirname(PKG_DIR)
 SDK_DIR = os.path.dirname(TOOLS_DIR)
-sys.path.append(os.path.join(SDK_DIR, "build", "script"))
-sys.path.append(os.path.join(SDK_DIR, "build", "config"))
+sys.path.append(os.path.join(SDK_DIR, "infra_build", "script"))
+sys.path.append(os.path.join(SDK_DIR, "infra_build", "config"))
 from enviroment import TargetEnvironment
 
 
