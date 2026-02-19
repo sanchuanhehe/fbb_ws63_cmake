@@ -9,11 +9,16 @@ if(NOT "${SECTOR_CFG}" STREQUAL "")
     if (NOT EXISTS ${SECTOR_BIN_PATH})
         file(MAKE_DIRECTORY ${SECTOR_BIN_PATH})
     endif()
-    add_custom_target(GENERAT_PARTITION ALL
-        COMMAND ${Python3_EXECUTABLE} ${ROOT_DIR}/build/script/param_packet.py ${SECTOR_JSON} ${SECTOR_BIN_PATH}/partition.bin &&
-                ${CP} ${SECTOR_BIN_PATH}/partition.bin ${PROJECT_BINARY_DIR}/partition.bin
+    set(PARTITION_BIN_OUT ${PROJECT_BINARY_DIR}/partition.bin)
+    add_custom_command(
+        OUTPUT ${PARTITION_BIN_OUT}
+        COMMAND ${Python3_EXECUTABLE} ${ROOT_DIR}/build/script/param_packet.py ${SECTOR_JSON} ${SECTOR_BIN_PATH}/partition.bin
+        COMMAND ${CP} ${SECTOR_BIN_PATH}/partition.bin ${PARTITION_BIN_OUT}
         COMMENT "update partition bin"
         WORKING_DIRECTORY ${ROOT_DIR}
         DEPENDS GENERAT_BIN
+    )
+    add_custom_target(GENERAT_PARTITION ALL
+        DEPENDS ${PARTITION_BIN_OUT}
     )
 endif()
