@@ -3,6 +3,19 @@
 # Copyright (c) HiSilicon (Shanghai) Technologies Co., Ltd. 2022-2022. All rights reserved.
 #===============================================================================
 
+function(add_sdk_stage_target target_name)
+    set(_stage_stamp ${PROJECT_BINARY_DIR}/.${target_name}.stamp)
+    add_custom_command(
+        OUTPUT ${_stage_stamp}
+        ${ARGN}
+        COMMAND ${CMAKE_COMMAND} -E touch ${_stage_stamp}
+        VERBATIM
+    )
+    add_custom_target(${target_name} ALL
+        DEPENDS ${_stage_stamp}
+    )
+endfunction()
+
 # copy file or dir to the dest path in sdk
 function(install_dest_sdk src sdk_dest partern)
     if (NOT DEFINED SDK_OUTPUT_PATH)
@@ -15,7 +28,7 @@ function(install_dest_sdk src sdk_dest partern)
         return()
     endif()
     string(REPLACE "${ROOT_DIR}" "${SDK_OUTPUT_PATH}" dest ${sdk_dest})
-    add_custom_target(COPY${_name} ALL
+    add_sdk_stage_target(COPY${_name}
         COMMENT "--Installing ${src} => ${dest}"
         COMMAND ${Python3_EXECUTABLE} ${BUILD_UTILS} copy "${src}" "${dest}" ".srcrelease" '${partern}'
     )
@@ -33,7 +46,7 @@ function(install_sdk src partern)
         return()
     endif()
     string(REPLACE "${ROOT_DIR}" "${SDK_OUTPUT_PATH}" dest ${src})
-    add_custom_target(COPY${_name} ALL
+    add_sdk_stage_target(COPY${_name}
         COMMENT "--Installing ${src} => ${dest}"
         COMMAND ${Python3_EXECUTABLE} ${BUILD_UTILS} copy "${src}" "${dest}" ".srcrelease" '${partern}'
     )
@@ -52,10 +65,10 @@ function(install_sdk_by_sh src partern)
         return()
     endif()
     string(REPLACE "${ROOT_DIR}" "${SDK_OUTPUT_PATH}" dest ${src})
-    add_custom_target(COPY${_name} ALL
+    add_sdk_stage_target(COPY${_name}
         COMMENT "--Installing ${src} => ${dest}"
         COMMAND mkdir -p "${dest}"
-        COMMAND cp -rf "${src}/${partern}" "${dest}" || :
+        COMMAND sh -c "cp -rf \"${src}/${partern}\" \"${dest}\" || :"
     )
     add_dependencies(COPY${_name} ${TARGET_NAME})
 endfunction()
@@ -245,7 +258,7 @@ function(generate_project_file)
     string(REPLACE "${PROJECT_SOURCE_DIR}" "${SDK_OUTPUT_PATH}" SDK_CURRENT_COMPILER_DIR ${COMPILER_ROOT})
     list(JOIN SDK_TYPE "," SDK_TYPE_LIST)
 
-    add_custom_target(GEN_PROJECT ALL
+    add_sdk_stage_target(GEN_PROJECT
         COMMAND ${Python3_EXECUTABLE} ${PRO_GEN} "${SDK_TYPE_LIST}" "${MAIN_COMPONENT_RESOLVED}" "${CC_JSON}" "${SDK_CURRENT_DIR}" "${PROJECT_SOURCE_DIR}" "${SDK_OUTPUT_PATH}" "${CHIP},${CORE},${BOARD},${ARCH},${OS},${PKG_TARGET_NAME}" "${TOOLCHAIN_FILE}" "${COMPONENT_INFO}"
         WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
         COMMENT "Generating project file..."
@@ -254,17 +267,17 @@ function(generate_project_file)
     add_dependencies(GEN_PROJECT "${TARGET_NAME}")
     if(NOT EXISTS ${SDK_CURRENT_COMPILER_DIR})
         get_filename_component(SDK_CURRENT_COMPILER_DIR_ABS  "${SDK_CURRENT_COMPILER_DIR}/.." ABSOLUTE)
-        add_custom_target(GEN_COMPILER_LN ALL
+        add_sdk_stage_target(GEN_COMPILER_LN
             WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
             COMMAND mkdir -p ${SDK_CURRENT_COMPILER_DIR_ABS}
             COMMAND ln -s ${COMPILER_ROOT} ${SDK_CURRENT_COMPILER_DIR}
         )
         if(DEFINED COMPILER_ROOT_WIN AND EXISTS ${COMPILER_ROOT_WIN})
-            add_custom_target(GEN_COMPILER_WIN_LN ALL
+            add_sdk_stage_target(GEN_COMPILER_WIN_LN
                 WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
                 COMMAND ln -s ${COMPILER_ROOT_WIN} ${SDK_CURRENT_COMPILER_DIR_ABS}
-                DEPENDS GEN_COMPILER_LN
             )
+            add_dependencies(GEN_COMPILER_WIN_LN GEN_COMPILER_LN)
         endif()
 
     endif()

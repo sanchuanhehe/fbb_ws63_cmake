@@ -56,12 +56,19 @@ if(${ROM_CHECK})
     list(APPEND LDS_DEFINES "-DROM_CHECK")
 endif()
 
-add_custom_command(TARGET ${TARGET_NAME} PRE_BUILD
+add_custom_command(
+    OUTPUT ${CMAKE_BINARY_DIR}/linker.lds
     COMMAND ${CMAKE_C_COMPILER} -P -xc -E -o linker.lds @${CMAKE_CURRENT_BINARY_DIR}/linker_header.srp ${LDS_DEFINES} ${LINK_SCRIPT}
     COMMENT "Generating ${LINK_SCRIPT} -> ${CMAKE_BINARY_DIR}/linker.lds"
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    DEPENDS ${LINK_SCRIPT} ${CMAKE_CURRENT_BINARY_DIR}/linker_header.srp
     VERBATIM
 )
+
+add_custom_target(GENERATE_LINKER_LDS ALL
+    DEPENDS ${CMAKE_BINARY_DIR}/linker.lds
+)
+add_dependencies(${TARGET_NAME} GENERATE_LINKER_LDS)
 
 target_link_directories(${TARGET_NAME}
     PRIVATE
