@@ -103,35 +103,33 @@ elseif (${TARGET_NAME} MATCHES "application*" OR ${TARGET_NAME} STREQUAL "ate_de
         ${TARGET_NAME} MATCHES "protocol*" )
 if (EXISTS ${ROOT_DIR}/build/config/target_config/${CHIP}/sign_config/${BUILD_TARGET_NAME}.cfg)
 set(SIGN_CONFIG_FILE ${ROOT_DIR}/build/config/target_config/${CHIP}/sign_config/${BUILD_TARGET_NAME}.cfg)
-set(GENERAT_SIGNBIN_STAMP ${PROJECT_BINARY_DIR}/.generat_signbin.stamp)
+set(GENERAT_SIGNBIN_OUTPUT ${PROJECT_BINARY_DIR}/${BIN_NAME}_sign.bin)
 add_custom_command(
-    OUTPUT ${GENERAT_SIGNBIN_STAMP}
+    OUTPUT ${GENERAT_SIGNBIN_OUTPUT}
     COMMAND ${SIGN_TOOL} 0 ${SIGN_CONFIG_FILE}
-    COMMAND ${CMAKE_COMMAND} -E touch ${GENERAT_SIGNBIN_STAMP}
     COMMENT "sign file:gen boot sign file"
     WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
     DEPENDS GENERAT_BIN
     VERBATIM
 )
 add_custom_target(GENERAT_SIGNBIN ALL
-    DEPENDS ${GENERAT_SIGNBIN_STAMP}
+    DEPENDS ${GENERAT_SIGNBIN_OUTPUT}
 )
 endif()
 elseif (${TARGET_NAME} MATCHES "control_ws53*")
 if (EXISTS ${ROOT_DIR}/build/config/target_config/${CHIP}/sign_config/${BUILD_TARGET_NAME}.cfg)
 set(SIGN_CONFIG_FILE ${ROOT_DIR}/build/config/target_config/${CHIP}/sign_config/${BUILD_TARGET_NAME}.cfg)
-set(GENERAT_SIGNBIN_STAMP ${PROJECT_BINARY_DIR}/.generat_signbin.stamp)
+set(GENERAT_SIGNBIN_OUTPUT ${PROJECT_BINARY_DIR}/${BIN_NAME}_sign.bin)
 add_custom_command(
-    OUTPUT ${GENERAT_SIGNBIN_STAMP}
+    OUTPUT ${GENERAT_SIGNBIN_OUTPUT}
     COMMAND ${SIGN_TOOL} 0 ${SIGN_CONFIG_FILE}
-    COMMAND ${CMAKE_COMMAND} -E touch ${GENERAT_SIGNBIN_STAMP}
     COMMENT "sign file:gen boot sign file"
     WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
     DEPENDS GENERAT_BIN
     VERBATIM
 )
 add_custom_target(GENERAT_SIGNBIN ALL
-    DEPENDS ${GENERAT_SIGNBIN_STAMP}
+    DEPENDS ${GENERAT_SIGNBIN_OUTPUT}
 )
 endif()
 endif()

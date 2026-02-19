@@ -60,19 +60,18 @@ if(NOT ${NV_CFG} EQUAL "")
     set(GEN_TARGET_SRC ${GEN_TARGET_DIR}/${CORE}.c)
     set(PRECOMPILE_TARGET ${GEN_TARGET_DIR}/${CORE}.etypes)
 
-    set(NV_INFO_STAMP ${PROJECT_BINARY_DIR}/nv_config/.nv_info.stamp)
     add_custom_command(
-        OUTPUT ${NV_INFO_STAMP}
+        OUTPUT ${PRECOMPILE_TARGET}
         COMMAND ${Python3_EXECUTABLE} ${BUILD_NV_GEN_UTILS} NV include ${GEN_TARGET_SRC}
         COMMAND ${CMAKE_C_COMPILER} -o ${PRECOMPILE_TARGET} ${TARGET_INCLUDE} ${TARGET_DEFINES} -E ${GEN_TARGET_SRC}
-        COMMAND ${CMAKE_COMMAND} -E touch ${NV_INFO_STAMP}
         WORKING_DIRECTORY ${ROOT_DIR}/middleware/chips/${CHIP}/nv/nv_config/${NV_CFG}
         DEPENDS GENERAT_BIN
+        BYPRODUCTS ${GEN_TARGET_SRC}
         VERBATIM
     )
 
     add_custom_target(GENERAT_NV_INFO ALL
-        DEPENDS ${NV_INFO_STAMP}
+        DEPENDS ${PRECOMPILE_TARGET}
     )
 
     if (${NV_CRC16})

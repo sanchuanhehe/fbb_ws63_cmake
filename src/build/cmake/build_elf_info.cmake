@@ -17,6 +17,16 @@ macro(add_stamp_stage_target target_name)
     )
 endmacro()
 
+macro(add_output_stage_target target_name output_file)
+    add_custom_command(
+        OUTPUT ${output_file}
+        ${ARGN}
+    )
+    add_custom_target(${target_name} ALL
+        DEPENDS ${output_file}
+    )
+endmacro()
+
 if (DEFINED BUILD_LEVEL AND NOT ${BUILD_LEVEL} STREQUAL "release")
     set(EXTRA_DUMP_OPT -S -l)
 endif()
@@ -26,7 +36,7 @@ if (DEFINED NHSO AND "${NHSO}" STREQUAL "True")
 endif()
 
 if((NOT DEFINED DEBUG_FILES OR "lst" IN_LIST DEBUG_FILES OR "mem" IN_LIST DEBUG_FILES) AND NOT ${ROM_CHECK})
-    add_stamp_stage_target(GENERAT_LST
+    add_output_stage_target(GENERAT_LST ${PROJECT_BINARY_DIR}/${BIN_NAME}.lst
         COMMAND ${CMAKE_OBJDUMP} -x ${EXTRA_DUMP_OPT} ${BIN_NAME}.elf > ${BIN_NAME}.lst
         WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
         DEPENDS ${TARGET_NAME}
@@ -34,7 +44,7 @@ if((NOT DEFINED DEBUG_FILES OR "lst" IN_LIST DEBUG_FILES OR "mem" IN_LIST DEBUG_
 endif()
 
 if(NOT DEFINED DEBUG_FILES OR "nm" IN_LIST DEBUG_FILES OR "${GEN_PARSE_TOOL}" STREQUAL "True")
-    add_stamp_stage_target(GENERAT_NM
+    add_output_stage_target(GENERAT_NM ${PROJECT_BINARY_DIR}/${BIN_NAME}.nm
         COMMAND ${CMAKE_NM} -S -n  --format=sysv ${BIN_NAME}.elf > ${BIN_NAME}.nm
         WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
         DEPENDS ${TARGET_NAME}
@@ -42,7 +52,7 @@ if(NOT DEFINED DEBUG_FILES OR "nm" IN_LIST DEBUG_FILES OR "${GEN_PARSE_TOOL}" ST
 endif()
 
 if(NOT DEFINED DEBUG_FILES OR "asm" IN_LIST DEBUG_FILES)
-    add_stamp_stage_target(GENERAT_ASM
+    add_output_stage_target(GENERAT_ASM ${PROJECT_BINARY_DIR}/${BIN_NAME}.asm
         COMMAND ${CMAKE_OBJDUMP} -d -m ${ARCH_FAMILY} ${BIN_NAME}.elf > ${BIN_NAME}.asm
         WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
         DEPENDS ${TARGET_NAME}
@@ -50,7 +60,7 @@ if(NOT DEFINED DEBUG_FILES OR "asm" IN_LIST DEBUG_FILES)
 endif()
 
 if("${GEN_PARSE_TOOL}" STREQUAL "True")
-    add_stamp_stage_target(GENERAT_INFO
+    add_output_stage_target(GENERAT_INFO ${PROJECT_BINARY_DIR}/${BIN_NAME}.info
         COMMAND ${CMAKE_OBJDUMP} -Wi ${BIN_NAME}.elf > ${BIN_NAME}.info
         WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
         DEPENDS ${TARGET_NAME}
@@ -58,11 +68,12 @@ if("${GEN_PARSE_TOOL}" STREQUAL "True")
 endif()
 
 if((NOT DEFINED DEBUG_FILES OR "mem" IN_LIST DEBUG_FILES) AND NOT ${ROM_CHECK})
-add_stamp_stage_target(GENERAT_MEM
+add_output_stage_target(GENERAT_MEM ${PROJECT_BINARY_DIR}/${BIN_NAME}.mem
     COMMAND ${Python3_EXECUTABLE} ${ELF_TO_DU} ${ROOT_DIR} ${BIN_NAME}.elf ${CMAKE_NM} > ${BIN_NAME}.du
     COMMAND ${Python3_EXECUTABLE} ${MEM_STATE} ${BIN_NAME}.lst ${BIN_NAME}.du ${BUILT_LDS} ${CHIP} > ${BIN_NAME}.mem
     WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
     DEPENDS ${TARGET_NAME} GENERAT_LST
+    BYPRODUCTS ${PROJECT_BINARY_DIR}/${BIN_NAME}.du
 )
 if(NOT "SDK_NOT_MEM_LIMIT" IN_LIST DEFINES)
     add_stamp_stage_target(GENERAT_MEM_LIMIT
@@ -75,20 +86,20 @@ endif()
 endif()
 
 if(NOT DEFINED DEBUG_FILES OR "hex" IN_LIST DEBUG_FILES)
-add_stamp_stage_target(GENERAT_STD_HEX
+add_output_stage_target(GENERAT_STD_HEX ${PROJECT_BINARY_DIR}/${BIN_NAME}_std.hex
     # 生成 intel 标准 hex 文件
     COMMAND ${CMAKE_OBJCOPY} -O ihex ${BIN_NAME}.elf ${BIN_NAME}_std.hex
     WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
     DEPENDS GENERAT_BIN
 )
-add_stamp_stage_target(GENERAT_HEX
+add_output_stage_target(GENERAT_HEX ${PROJECT_BINARY_DIR}/${BIN_NAME}.hex
     COMMAND ${Python3_EXECUTABLE} ${GEN_HEX} ${BIN_NAME}.bin ${BIN_NAME}.hex
     WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
     DEPENDS GENERAT_BIN
 )
 
 if(DEFINED ROM_COMPONENT)
-    add_stamp_stage_target(GENERAT_ROM_HEX
+    add_output_stage_target(GENERAT_ROM_HEX ${PROJECT_BINARY_DIR}/${BIN_NAME}_rom.hex
         COMMAND ${Python3_EXECUTABLE} ${GEN_HEX} ${BIN_NAME}_rom.bin ${BIN_NAME}_rom.hex
         WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
         DEPENDS GENERAT_BIN

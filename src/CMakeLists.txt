@@ -149,14 +149,20 @@ if(DEFINED FBB_TARGET AND NOT "${FBB_TARGET}" STREQUAL "")
     )
 
     set(_KCONFIG_HEADER "${PROJECT_BINARY_DIR}/mconfig.h")
-    set(_KCONFIG_STAMP "${PROJECT_BINARY_DIR}/kconfig_header.stamp")
-    add_custom_command(
-        OUTPUT ${_KCONFIG_STAMP}
+    execute_process(
         COMMAND ${Python3_EXECUTABLE} ${ROOT_DIR}/build/script/usr_config.py --command savemenuconfig --chip ${CHIP} --core ${CORE} --target ${PKG_TARGET_NAME} --output ${PROJECT_BINARY_DIR}
-        COMMAND ${CMAKE_COMMAND} -E touch ${_KCONFIG_STAMP}
+        WORKING_DIRECTORY ${ROOT_DIR}
+        RESULT_VARIABLE _KCONFIG_HEADER_RESULT
+    )
+    if(NOT _KCONFIG_HEADER_RESULT EQUAL 0)
+        message(FATAL_ERROR "Failed to generate kconfig header: ${_KCONFIG_HEADER}")
+    endif()
+    add_custom_command(
+        OUTPUT ${_KCONFIG_HEADER}
+        COMMAND ${Python3_EXECUTABLE} ${ROOT_DIR}/build/script/usr_config.py --command savemenuconfig --chip ${CHIP} --core ${CORE} --target ${PKG_TARGET_NAME} --output ${PROJECT_BINARY_DIR}
+        COMMAND ${CMAKE_COMMAND} -E touch ${_KCONFIG_HEADER}
         WORKING_DIRECTORY ${ROOT_DIR}
         DEPENDS ${ROOT_DIR}/build/script/usr_config.py
-        BYPRODUCTS ${_KCONFIG_HEADER}
         VERBATIM
     )
 
@@ -203,8 +209,11 @@ if(DEFINED FBB_TARGET AND NOT "${FBB_TARGET}" STREQUAL "")
     )
 
     add_custom_target(kconfig-header
-        DEPENDS ${_KCONFIG_STAMP}
+        DEPENDS ${_KCONFIG_HEADER}
     )
+    if(TARGET ${TARGET_NAME})
+        add_dependencies(${TARGET_NAME} kconfig-header)
+    endif()
 
     if(DEFINED PACKET AND PACKET)
         set(_PREPACKAGE_OUT_ROOT "${OUTPUT_ROOT}/${CHIP}/${CORE}")
@@ -234,12 +243,12 @@ if(DEFINED FBB_TARGET AND NOT "${FBB_TARGET}" STREQUAL "")
                     FBB_SIGN_MANIFEST=${_PREPACKAGE_BOOT_MANIFEST}
                     ${Python3_EXECUTABLE} ${ROOT_DIR}/build/config/target_config/${CHIP}/sign_config/params_and_bin_sign.py ${TARGET_NAME}
             WORKING_DIRECTORY ${ROOT_DIR}
-            DEPENDS ${TARGET_NAME} ${ROOT_DIR}/build/config/target_config/${CHIP}/sign_config/params_and_bin_sign.py
+            DEPENDS ${TARGET_NAME} GENERAT_BIN ${ROOT_DIR}/build/config/target_config/${CHIP}/sign_config/params_and_bin_sign.py
             VERBATIM
         )
         add_custom_target(prepackage-bootloaders DEPENDS ${_PREPACKAGE_BOOT_MANIFEST} ${_PREPACKAGE_FLASHBOOT_BIN} ${_PREPACKAGE_LOADERBOOT_BIN})
 
-        set(_FWPKG_DEPS prepackage-bootloaders ${TARGET_NAME})
+        set(_FWPKG_DEPS prepackage-bootloaders ${TARGET_NAME} GENERAT_BIN)
         if(TARGET WS63_GENERAT_SIGNBIN)
             list(APPEND _FWPKG_DEPS WS63_GENERAT_SIGNBIN)
         elseif(TARGET WS53_GENERAT_SIGNBIN)
@@ -281,7 +290,6 @@ if(DEFINED FBB_TARGET AND NOT "${FBB_TARGET}" STREQUAL "")
         endif()
     endif()
 
-    set(_SDK_STAMP "${PROJECT_BINARY_DIR}/fbb_package_sdk.stamp")
     set(_SDK_PACKAGE_DEPENDS build-contract ${TARGET_NAME})
     if(TARGET package-fwpkg)
         list(APPEND _SDK_PACKAGE_DEPENDS package-fwpkg)
@@ -296,28 +304,16 @@ if(DEFINED FBB_TARGET AND NOT "${FBB_TARGET}" STREQUAL "")
         list(APPEND _SDK_PACKAGE_DEPENDS BUILD_ROM_CALLBACK)
     endif()
 
-    add_custom_command(
-        OUTPUT ${_SDK_STAMP}
-        COMMAND ${CMAKE_COMMAND} -E touch ${_SDK_STAMP}
-        DEPENDS ${_SDK_PACKAGE_DEPENDS}
-        VERBATIM
-    )
-    add_custom_target(sdk-package DEPENDS ${_SDK_STAMP})
+    add_custom_target(sdk-package DEPENDS ${_SDK_PACKAGE_DEPENDS})
 
     add_custom_target(postbuild-hso-db DEPENDS HSO_DB)
 
     if(TARGET BUILD_ROM_CALLBACK)
         add_custom_target(postbuild-rom-callback DEPENDS BUILD_ROM_CALLBACK)
     else()
-        set(_ROM_CB_FALLBACK_STAMP "${PROJECT_BINARY_DIR}/postbuild_rom_callback_disabled.stamp")
-        add_custom_command(
-            OUTPUT ${_ROM_CB_FALLBACK_STAMP}
-            COMMAND ${CMAKE_COMMAND} -E echo "BUILD_ROM_CALLBACK target is not enabled for ${FBB_TARGET}"
-            COMMAND ${CMAKE_COMMAND} -E touch ${_ROM_CB_FALLBACK_STAMP}
-            VERBATIM
-        )
         add_custom_target(postbuild-rom-callback
-            DEPENDS ${_ROM_CB_FALLBACK_STAMP}
+            COMMAND ${CMAKE_COMMAND} -E echo "BUILD_ROM_CALLBACK target is not enabled for ${FBB_TARGET}"
+            VERBATIM
         )
     endif()
 
