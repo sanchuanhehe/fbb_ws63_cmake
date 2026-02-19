@@ -113,6 +113,10 @@ target = {
         'defines': [
             "__NON_OS__",
             "WS63_PRODUCT_NONE",
+            "CONFIG_BOOT_SUPPORT_SECURE_VERIFY",
+            "CONFIG_UART_USING_V151",
+            "CONFIG_WATCHDOG_USING_V151",
+            "CONFIG_WATCHDOG_USING_V151_RST_PL=7",
             "CONFIG_TIMER_MAX_NUM=3",
             "CONFIG_TIMER_CLOCK_VALUE=24000000",
             "CONFIG_TIMER_0_WIDTH_64=0",
@@ -145,6 +149,10 @@ target = {
         'CONFIG_TIMER_USING_V150': 'y',
         'defines': [
             "WS63_PRODUCT_NONE",
+            "CONFIG_BOOT_SUPPORT_SECURE_VERIFY",
+            "CONFIG_UART_USING_V151",
+            "CONFIG_WATCHDOG_USING_V151",
+            "CONFIG_WATCHDOG_USING_V151_RST_PL=7",
             "CONFIG_TIMER_MAX_NUM=3",
             "CONFIG_TIMER_CLOCK_VALUE=24000000",
             "CONFIG_TIMER_0_WIDTH_64=0",

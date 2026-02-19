@@ -3,6 +3,7 @@ import os
 import sys
 import shutil
 import platform
+import json
 
 
 file_dir = os.path.dirname(os.path.realpath(__file__))
@@ -19,12 +20,93 @@ if "windows" in platform.platform().lower():
     sign_tool = "../../../../../tools/bin/sign_tool/sign_tool_pltuni.exe"
 else:
     sign_tool = "../../../../../tools/bin/sign_tool/sign_tool_pltuni"
-out_put = "../../../../../output/ws63/acore"
-pktbin = "../../../../../output/ws63/pktbin"
-inter_bin = "../../../../../interim_binary/ws63/bin/boot_bin"
+target_name = sys.argv[1] if len(sys.argv) > 1 else ""
+chip = os.environ.get("FBB_CHIP", "ws63").strip() or "ws63"
+core = os.environ.get("FBB_CORE", "acore").strip() or "acore"
+fbb_output_root = os.environ.get("FBB_OUTPUT_ROOT", "").strip()
+
+if fbb_output_root:
+    chip_root = os.path.join(os.path.abspath(fbb_output_root), chip)
+else:
+    chip_root = os.path.join(g_root, "output", chip)
+
+out_put = os.path.join(chip_root, core)
+pktbin = os.path.join(chip_root, "pktbin")
+inter_bin_candidates = [
+    os.path.join(chip_root, core, "boot_bin"),
+    os.path.join(g_root, "interim_binary", chip, "bin", "boot_bin")
+]
+inter_bin = inter_bin_candidates[0]
+for _candidate in inter_bin_candidates:
+    if os.path.isdir(_candidate):
+        inter_bin = _candidate
+        break
+
+default_manifest = os.path.join(out_put, "sign_manifest", f"{target_name}.json")
+manifest_path = os.path.abspath(os.environ.get("FBB_SIGN_MANIFEST", default_manifest))
 efuse_csv = "../script/efuse.csv"
-boot_bin = "../../../../../output/ws63/acore/boot_bin"
+boot_bin = os.path.join(out_put, "boot_bin")
 mfg_bin = "../../../../../application/ws63/ws63_liteos_mfg"
+
+generated_outputs = []
+
+
+def mark_output(file_path):
+    abs_file = os.path.abspath(file_path)
+    if os.path.isfile(abs_file) and abs_file not in generated_outputs:
+        generated_outputs.append(abs_file)
+
+
+def stage_signed_output(output_dir, file_name):
+    target_file = os.path.join(output_dir, file_name)
+    if os.path.isfile(target_file):
+        return target_file
+    generated_file = os.path.join(cwd_path, file_name)
+    if os.path.isfile(generated_file):
+        os.makedirs(output_dir, exist_ok=True)
+        shutil.copy(generated_file, target_file)
+        mark_output(target_file)
+        return target_file
+    return target_file
+
+
+def _runtime_cfg_path(cfg_name):
+    return os.path.join(cwd_path, f".runtime_{cfg_name}")
+
+
+def build_runtime_cfg(cfg_name, src_file=None, dst_file=None):
+    cfg_path = os.path.join(cwd_path, cfg_name)
+    runtime_cfg = _runtime_cfg_path(cfg_name)
+    with open(cfg_path, 'r', encoding='utf-8') as cfg_file:
+        lines = cfg_file.readlines()
+
+    output_token = "../../../../../output/ws63/acore"
+    normalized_out_put = out_put.replace('\\', '/')
+    new_lines = []
+    for line in lines:
+        if src_file and line.startswith("SrcFile="):
+            new_lines.append(f"SrcFile={os.path.abspath(src_file)}\n")
+            continue
+        if dst_file and line.startswith("DstFile="):
+            new_lines.append(f"DstFile={os.path.abspath(dst_file)}\n")
+            continue
+        if output_token in line:
+            new_lines.append(line.replace(output_token, normalized_out_put))
+            continue
+        new_lines.append(line)
+
+    with open(runtime_cfg, 'w', encoding='utf-8') as runtime_file:
+        runtime_file.writelines(new_lines)
+    return runtime_cfg
+
+
+def run_sign(cfg_mode, cfg_name, src_file=None, dst_file=None):
+    runtime_cfg = build_runtime_cfg(cfg_name, src_file=src_file, dst_file=dst_file)
+    try:
+        return subprocess.run([sign_tool, cfg_mode, runtime_cfg], stdout=subprocess.DEVNULL)
+    finally:
+        if os.path.exists(runtime_cfg):
+            os.remove(runtime_cfg)
 
 def merge(file_first, file_second, file_out):
     if "windows" in platform.platform().lower():
@@ -46,22 +128,27 @@ def merge(file_first, file_second, file_out):
 
 def move_file(src_path, dst_path, file_name):
     src_file = os.path.join(src_path, file_name)
-    if not os.path.exists(dst_path):
-        os.mkdir(dst_path)
+    os.makedirs(dst_path, exist_ok=True)
     dst_file = os.path.join(dst_path, file_name)
     shutil.move(src_file, dst_file)
+    mark_output(dst_file)
 
 
-def sign_app(file_path, type, cfg_name):
+def sign_app(file_path, type, cfg_name, dst_file=None):
     if os.path.isfile(file_path):
         print("sign name: ", file_path)
         dd64c(file_path)
-        ret = subprocess.run([sign_tool, type, cfg_name], stdout=subprocess.DEVNULL)
+        if dst_file is None:
+            dst_file = file_path.replace(".bin", "-sign.bin")
+        ret = run_sign(type, cfg_name, src_file=file_path, dst_file=dst_file)
         if ret.returncode == 0:
             print(file_path, " generated successfully!!!")
+            sign_bin = dst_file
+            mark_output(sign_bin)
         else:
             print(file_path, " generated failed!!!")
         shutil.copy(file_path, pktbin)
+        mark_output(os.path.join(pktbin, os.path.basename(file_path)))
     else:
         pass
 
@@ -87,12 +174,12 @@ os.makedirs(pktbin)
 
 # generate params.bin
 params_cmd = ["../param_sector/param_sector.json", "params.bin"]
-if sys.argv[1] == "ws63-liteos-app-iot" or sys.argv[1] == "ws63-liteos-hilink":
-    target_env = TargetEnvironment(sys.argv[1])
+if target_name == "ws63-liteos-app-iot" or target_name == "ws63-liteos-hilink":
+    target_env = TargetEnvironment(target_name)
     defines = target_env.get('defines')
     if "CONFIG_SUPPORT_HILINK_INDIE_UPGRADE" in defines:
         params_cmd = ["../param_sector/param_sector_hilink_indie_upgrade.json", "params.bin"]
-if sys.argv[1] == "ws63-liteos-msmart" or sys.argv[1] == "ws63-liteos-msmart-xts":
+if target_name == "ws63-liteos-msmart" or target_name == "ws63-liteos-msmart-xts":
     params_cmd = ["../param_sector/param_sector_ms.json", "params.bin"]
 
 print("generate params.bin...")
@@ -103,7 +190,7 @@ if os.path.isfile("params.bin"):
 
     # generate params_sign.bin
     param_bin_ecc_cmd = [sign_tool, "0", "param_bin_ecc.cfg"]
-    ret = subprocess.run(param_bin_ecc_cmd, cwd=cwd_path, stdout=subprocess.DEVNULL)
+    ret = run_sign("0", "param_bin_ecc.cfg")
     if ret.returncode == 0:
         print("params_sign.bin generate successfully!!!")
     else:
@@ -111,7 +198,7 @@ if os.path.isfile("params.bin"):
 
     # generate root public key
     root_pubk_cmd = [sign_tool, "1", "root_pubk.cfg"]
-    ret = subprocess.run(root_pubk_cmd, cwd=cwd_path, stdout=subprocess.DEVNULL)
+    ret = run_sign("1", "root_pubk.cfg")
     if ret.returncode == 0:
         print("root_pubk.bin generate successfully!!!")
     else:
@@ -125,20 +212,32 @@ if os.path.isfile("params.bin"):
 
 if not os.path.isdir(boot_bin):
     shutil.copytree(inter_bin, boot_bin)
+    generated_outputs.append(os.path.abspath(boot_bin))
 
-shutil.copy(os.path.join(inter_bin, "ssb.bin"), boot_bin)
+_interim_ssb = os.path.join(inter_bin, "ssb.bin")
+_boot_ssb = os.path.join(boot_bin, "ssb.bin")
+if os.path.isfile(_interim_ssb):
+    if os.path.abspath(_interim_ssb) != os.path.abspath(_boot_ssb):
+        shutil.copy(_interim_ssb, boot_bin)
+    mark_output(_boot_ssb)
 
 if os.path.isfile(os.path.join(mfg_bin, "ws63-liteos-mfg.bin")):
     shutil.copy(os.path.join(mfg_bin, "ws63-liteos-mfg.bin"), boot_bin)
+    mark_output(os.path.join(boot_bin, "ws63-liteos-mfg.bin"))
 
 #sign ssb
 if os.path.isfile(os.path.join(out_put, "ws63-ssb/ssb.bin")):
     dd64c(os.path.join(out_put, "ws63-ssb/ssb.bin"))
     shutil.copy(os.path.join(out_put, "ws63-ssb/ssb.bin"), pktbin)
-    ret1 = subprocess.run([sign_tool, "0", "ssb_bin_ecc.cfg"], stdout=subprocess.DEVNULL)
+    ret1 = run_sign("0", "ssb_bin_ecc.cfg", src_file=os.path.join(out_put, "ws63-ssb", "ssb.bin"), dst_file=os.path.join(out_put, "ws63-ssb", "ssb_sign.bin"))
     if ret1.returncode == 0:
+        ssb_sign_file = stage_signed_output(os.path.join(out_put, "ws63-ssb"), "ssb_sign.bin")
         print("ssb_sign.bin generated successfully!!!")
-        shutil.copy(os.path.join(out_put, "ws63-ssb/ssb_sign.bin"), boot_bin)
+        if os.path.isfile(ssb_sign_file):
+            shutil.copy(ssb_sign_file, boot_bin)
+            mark_output(os.path.join(boot_bin, "ssb_sign.bin"))
+        else:
+            print("warning: ssb_sign.bin is missing, skip copy to boot_bin")
     else:
         print("ssb_sign.bin generated failed!!!")
 
@@ -148,10 +247,19 @@ if os.path.isfile(os.path.join(inter_bin, 'ssb.bin')):
     if not os.path.isfile(os.path.join(out_put, "ws63-ssb/ssb.bin")):
         os.makedirs(os.path.join(out_put, 'ws63-ssb'))
         shutil.copy(os.path.join(inter_bin, 'ssb.bin'), os.path.join(out_put, "ws63-ssb"))
-        sign_app(os.path.join(out_put, "ws63-ssb/ssb.bin"), "0", "ssb_bin_ecc.cfg")
+        sign_app(
+            os.path.join(out_put, "ws63-ssb/ssb.bin"),
+            "0",
+            "ssb_bin_ecc.cfg",
+            os.path.join(out_put, "ws63-ssb", "ssb_sign.bin")
+        )
         jug_ssb = True
-    shutil.copy(os.path.join(out_put, "ws63-ssb/ssb_sign.bin"), boot_bin)
-    print("ssb_sign.bin generated successfully!!!")
+    if os.path.isfile(os.path.join(out_put, "ws63-ssb/ssb_sign.bin")):
+        shutil.copy(os.path.join(out_put, "ws63-ssb/ssb_sign.bin"), boot_bin)
+        print("ssb_sign.bin generated successfully!!!")
+        mark_output(os.path.join(boot_bin, "ssb_sign.bin"))
+    else:
+        print("warning: ssb_sign.bin is missing, skip copy to boot_bin")
     if jug_ssb:
         shutil.rmtree(os.path.join(out_put, 'ws63-ssb'))
 
@@ -159,21 +267,34 @@ if os.path.isfile(os.path.join(inter_bin, 'ssb.bin')):
 if os.path.isfile(os.path.join(out_put, "ws63-flashboot/flashboot.bin")):
     dd64c(os.path.join(out_put, "ws63-flashboot/flashboot.bin"))
     shutil.copy(os.path.join(out_put, "ws63-flashboot/flashboot.bin"), pktbin)
-    ret1 = subprocess.run([sign_tool, "0", "flash_bin_ecc.cfg"], stdout=subprocess.DEVNULL)
-    ret2 = subprocess.run([sign_tool, "0", "flash_backup_bin_ecc.cfg"], stdout=subprocess.DEVNULL)
+    ret1 = run_sign("0", "flash_bin_ecc.cfg", src_file=os.path.join(out_put, "ws63-flashboot", "flashboot.bin"), dst_file=os.path.join(out_put, "ws63-flashboot", "flashboot_sign.bin"))
+    ret2 = run_sign("0", "flash_backup_bin_ecc.cfg", src_file=os.path.join(out_put, "ws63-flashboot", "flashboot.bin"), dst_file=os.path.join(out_put, "ws63-flashboot", "flashboot_backup_sign.bin"))
     if ret1.returncode == 0 and ret2.returncode == 0:
+        stage_signed_output(os.path.join(out_put, "ws63-flashboot"), "flashboot_sign.bin")
+        stage_signed_output(os.path.join(out_put, "ws63-flashboot"), "flashboot_backup_sign.bin")
         print("flash_sign.bin generated successfully!!!")
     else:
         print("flash_sign.bin generated failed!!!")
 
 if os.path.isfile(os.path.join(out_put, "ws63-flashboot/flashboot.bin")):
     shutil.copy(os.path.join(out_put, "ws63-flashboot/flashboot.bin"), boot_bin)
-    shutil.copy(os.path.join(out_put, "ws63-flashboot/flashboot_sign.bin"), boot_bin)
-    shutil.copy(os.path.join(out_put, "ws63-flashboot/flashboot_backup_sign.bin"), boot_bin)
+    flash_sign_file = stage_signed_output(os.path.join(out_put, "ws63-flashboot"), "flashboot_sign.bin")
+    flash_backup_sign_file = stage_signed_output(os.path.join(out_put, "ws63-flashboot"), "flashboot_backup_sign.bin")
+    if os.path.isfile(flash_sign_file):
+        shutil.copy(flash_sign_file, boot_bin)
+    else:
+        print("warning: flashboot_sign.bin is missing, skip copy to boot_bin")
+    if os.path.isfile(flash_backup_sign_file):
+        shutil.copy(flash_backup_sign_file, boot_bin)
+    else:
+        print("warning: flashboot_backup_sign.bin is missing, skip copy to boot_bin")
+    mark_output(os.path.join(boot_bin, "flashboot.bin"))
+    mark_output(os.path.join(boot_bin, "flashboot_sign.bin"))
+    mark_output(os.path.join(boot_bin, "flashboot_backup_sign.bin"))
 
 if os.path.isfile(os.path.join(out_put, "ws63-ate-flash", "ws63-ate-flash.bin")):
     dd64c(os.path.join(out_put, "ws63-ate-flash", "ws63-ate-flash.bin"))
-    ret1 = subprocess.run([sign_tool, "0", "flash_htol_bin_ecc.cfg"], stdout=subprocess.DEVNULL)
+    ret1 = run_sign("0", "flash_htol_bin_ecc.cfg")
     if ret1.returncode == 0:
         print("ws63_ate_flash.bin generated successfully!!!")
     else:
@@ -182,13 +303,15 @@ if os.path.isfile(os.path.join(out_put, "ws63-ate-flash", "ws63-ate-flash.bin"))
 if os.path.isfile(os.path.join(out_put, "ws63-loaderboot", "loaderboot.bin")):
     dd64c(os.path.join(out_put, "ws63-loaderboot", "loaderboot.bin"))
     shutil.copy(os.path.join(out_put, "ws63-loaderboot", "loaderboot.bin"), pktbin)
-    ret1 = subprocess.run([sign_tool, "0", "loaderboot_bin_ecc.cfg"], stdout=subprocess.DEVNULL)
+    ret1 = run_sign("0", "loaderboot_bin_ecc.cfg", src_file=os.path.join(out_put, "ws63-loaderboot", "loaderboot.bin"), dst_file=os.path.join(cwd_path, "loaderboot_sign.bin"))
     if ret1.returncode == 0:
         print("loaderboot_sign.bin generated successfully!!!")
     else:
         print("loaderboot_sign.bin generated failed!!!")
     merge("root_pubk.bin", "loaderboot_sign.bin", os.path.join(out_put, "ws63-loaderboot", "root_loaderboot_sign.bin"))
     shutil.copy(os.path.join(out_put, "ws63-loaderboot/root_loaderboot_sign.bin"), boot_bin)
+    mark_output(os.path.join(out_put, "ws63-loaderboot", "root_loaderboot_sign.bin"))
+    mark_output(os.path.join(boot_bin, "root_loaderboot_sign.bin"))
     print("root_loaderboot_sign.bin generated successfully!!!")
     os.remove("loaderboot_sign.bin")
 
@@ -199,10 +322,16 @@ if os.path.isfile(os.path.join(inter_bin, 'loaderboot.bin')):
         os.makedirs(os.path.join(out_put, 'ws63-loaderboot'))
         jug_loaderboot = True
         shutil.copy(os.path.join(inter_bin, 'loaderboot.bin'), os.path.join(out_put, "ws63-loaderboot"))
-        sign_app(os.path.join(out_put, "ws63-loaderboot/loaderboot.bin"), "0", "loaderboot_bin_ecc.cfg")
+        sign_app(
+            os.path.join(out_put, "ws63-loaderboot/loaderboot.bin"),
+            "0",
+            "loaderboot_bin_ecc.cfg",
+            os.path.join(cwd_path, "loaderboot_sign.bin")
+        )
         if(os.path.isfile("loaderboot_sign.bin")):
             print("loaderboot_sign.bin generated successfully!!!")
             merge("root_pubk.bin", 'loaderboot_sign.bin', os.path.join(boot_bin, 'root_loaderboot_sign.bin'))
+            mark_output(os.path.join(boot_bin, "root_loaderboot_sign.bin"))
             print("root_loaderboot_sign.bin generated successfully!!!")
         os.remove('loaderboot_sign.bin')
     if jug_loaderboot:
@@ -266,8 +395,10 @@ sign_app(os.path.join(boot_bin, "ws63-liteos-mfg.bin"), "0", "liteos_mfg_bin_fac
 
 move_file(cwd_path, os.path.join(out_put, "param_bin"), "params.bin")
 # clean middle files
-os.remove("params_sign.bin")
-os.remove("root_pubk.bin")
+if os.path.exists("params_sign.bin"):
+    os.remove("params_sign.bin")
+if os.path.exists("root_pubk.bin"):
+    os.remove("root_pubk.bin")
 
 if os.path.isfile(os.path.join(out_put, "ws63-liteos-app", "ws63-liteos-app.bin")):
     shutil.copy(os.path.join(out_put, "ws63-liteos-app", "ws63-liteos-app.bin"), pktbin)
@@ -289,11 +420,26 @@ if os.path.isfile(efuse_csv):
 
 if os.path.isfile(os.path.join(out_put, "param_bin", "params.bin")):
     shutil.copy(os.path.join(out_put, "param_bin", "params.bin"), pktbin)
+    mark_output(os.path.join(pktbin, "params.bin"))
 
 if os.path.isfile(os.path.join(out_put, "nv_bin", "ws63_all_nv.bin")):
     shutil.copy(os.path.join(out_put, "nv_bin", "ws63_all_nv.bin"), pktbin)
+    mark_output(os.path.join(pktbin, "ws63_all_nv.bin"))
 
 if os.path.isfile(os.path.join(out_put, "nv_bin", "ws63_all_nv_factory.bin")):
     shutil.copy(os.path.join(out_put, "nv_bin", "ws63_all_nv_factory.bin"), pktbin)
+    mark_output(os.path.join(pktbin, "ws63_all_nv_factory.bin"))
+
+os.makedirs(os.path.dirname(manifest_path), exist_ok=True)
+manifest_data = {
+    "target": target_name,
+    "chip": chip,
+    "core": core,
+    "output_root": out_put,
+    "pktbin": pktbin,
+    "outputs": sorted(generated_outputs)
+}
+with open(manifest_path, "w", encoding="utf-8") as manifest_file:
+    json.dump(manifest_data, manifest_file, indent=2, ensure_ascii=False)
 
 os.chdir(current_path)

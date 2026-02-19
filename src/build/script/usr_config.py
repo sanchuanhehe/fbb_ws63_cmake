@@ -90,7 +90,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--command",
         default="menuconfig",
-        choices=["menuconfig", "savemenuconfig", "defconfig", "allyesconfig", "allnoconfig", "setconfig", "openproject"],
+        choices=["menuconfig", "savemenuconfig", "defconfig", "allyesconfig", "allnoconfig", "setconfig", "reloadconfig", "openproject"],
         help="command to be used")
 
     parser.add_argument(

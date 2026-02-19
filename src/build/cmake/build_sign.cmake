@@ -135,19 +135,23 @@ add_custom_target(GENERAT_SIGNBIN ALL
 )
 endif()
 endif()
-if (${CHIP} STREQUAL "ws63")
-set(WS63_SIGN_STAMP ${PROJECT_BINARY_DIR}/.ws63_sign.stamp)
+if (${CHIP} STREQUAL "ws63" AND NOT (${TARGET_NAME} STREQUAL "flashboot" OR ${TARGET_NAME} STREQUAL "loaderboot"))
+set(WS63_SIGN_MANIFEST ${OUTPUT_ROOT}/${CHIP}/${CORE}/sign_manifest/${TARGET_NAME}.json)
 add_custom_command(
-    OUTPUT ${WS63_SIGN_STAMP}
-    COMMAND ${Python3_EXECUTABLE} ${ROOT_DIR}/build/config/target_config/${CHIP}/sign_config/params_and_bin_sign.py ${TARGET_NAME}
-    COMMAND ${CMAKE_COMMAND} -E touch ${WS63_SIGN_STAMP}
+    OUTPUT ${WS63_SIGN_MANIFEST}
+    COMMAND ${CMAKE_COMMAND} -E env
+        FBB_OUTPUT_ROOT=${OUTPUT_ROOT}
+        FBB_CHIP=${CHIP}
+        FBB_CORE=${CORE}
+        FBB_SIGN_MANIFEST=${WS63_SIGN_MANIFEST}
+        ${Python3_EXECUTABLE} ${ROOT_DIR}/build/config/target_config/${CHIP}/sign_config/params_and_bin_sign.py ${TARGET_NAME}
     COMMENT "ws63 image sign"
     WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
-    DEPENDS GENERAT_BIN ${GENERAT_ROM_PATCH}
+    DEPENDS GENERAT_BIN ${GENERAT_ROM_PATCH} ${ROOT_DIR}/build/config/target_config/${CHIP}/sign_config/params_and_bin_sign.py
     VERBATIM
 )
 add_custom_target(WS63_GENERAT_SIGNBIN ALL
-    DEPENDS ${WS63_SIGN_STAMP}
+    DEPENDS ${WS63_SIGN_MANIFEST}
 )
 
 if(TARGET GENERAT_ROM_PATCH)

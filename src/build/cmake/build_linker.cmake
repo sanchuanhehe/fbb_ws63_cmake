@@ -82,8 +82,19 @@ PRIVATE
     -Wl,--start-group "${STD_LIBS}" -Wl,--end-group
 )
 
+set(EXTRA_LINKFLAGS)
+if(DEFINED ROM_SYM_PATH AND NOT "${ROM_SYM_PATH}" STREQUAL "")
+    string(REPLACE "<root>" "${ROOT_DIR}" RESOLVED_ROM_SYM_PATH "${ROM_SYM_PATH}")
+    if(EXISTS "${RESOLVED_ROM_SYM_PATH}")
+        list(APPEND EXTRA_LINKFLAGS "-Wl,--just-symbols=${RESOLVED_ROM_SYM_PATH}")
+    else()
+        message(FATAL_ERROR "rom_sym_path ${RESOLVED_ROM_SYM_PATH} is not exists")
+    endif()
+endif()
+
 target_link_options(${TARGET_NAME}
     PRIVATE
+    ${EXTRA_LINKFLAGS}
     ${LINKFLAGS}
     -Wl,-T${CMAKE_BINARY_DIR}/linker.lds -nostartfiles
     -Wl,--gc-sections -Wl,-Map=${CMAKE_BINARY_DIR}/${BIN_NAME}.map

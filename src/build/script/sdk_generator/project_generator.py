@@ -175,14 +175,29 @@ class MakefileGenerator(ComponentParser):
 
 if __name__ == "__main__":
     project_type = sys.argv[1]
-    application_name = sys.argv[2]
-    cc_json = sys.argv[3]
-    project_file_dir = sys.argv[4]
-    root_dir = sys.argv[5]
-    sdk_output_dir = sys.argv[6]
-    chip, core, board, arch, os_kernel, pkg_target_name = sys.argv[7].split(",")
-    toolchain_file = sys.argv[8]
-    component_info_file = sys.argv[9]
+    if len(sys.argv) >= 10:
+        application_name = sys.argv[2]
+        cc_json = sys.argv[3]
+        project_file_dir = sys.argv[4]
+        root_dir = sys.argv[5]
+        sdk_output_dir = sys.argv[6]
+        chip, core, board, arch, os_kernel, pkg_target_name = sys.argv[7].split(",")
+        toolchain_file = sys.argv[8]
+        component_info_file = sys.argv[9]
+    elif len(sys.argv) == 9:
+        application_name = ""
+        cc_json = sys.argv[2]
+        project_file_dir = sys.argv[3]
+        root_dir = sys.argv[4]
+        sdk_output_dir = sys.argv[5]
+        chip, core, board, arch, os_kernel, pkg_target_name = sys.argv[6].split(",")
+        toolchain_file = sys.argv[7]
+        component_info_file = sys.argv[8]
+    else:
+        raise ValueError("invalid arguments for project_generator.py")
+
+    if application_name == "":
+        application_name = pkg_target_name
     project_folder = f"{chip}_{core}_{board}_{os_kernel}_{pkg_target_name}"
     project_type_list = project_type.split(",")
     if 'makefile' in project_type_list:

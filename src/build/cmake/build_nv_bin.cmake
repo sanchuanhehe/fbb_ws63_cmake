@@ -10,7 +10,11 @@ if(${NV_UPDATE})
     add_custom_command(
         OUTPUT ${NV_UPDATE_STAMP}
         COMMAND ${CMAKE_COMMAND} -E make_directory ${PROJECT_BINARY_DIR}/nv_config
-        COMMAND ${Python3_EXECUTABLE} ${ROOT_DIR}/build/config/target_config/${CHIP}/build_nvbin.py ${TARGET_NAME}
+        COMMAND ${CMAKE_COMMAND} -E env
+            FBB_OUTPUT_ROOT=${PROJECT_BINARY_DIR}
+            FBB_CHIP=${CHIP}
+            FBB_CORE=${CORE}
+            ${Python3_EXECUTABLE} ${ROOT_DIR}/build/config/target_config/${CHIP}/build_nvbin.py ${TARGET_NAME}
         COMMAND ${CMAKE_COMMAND} -E touch ${NV_UPDATE_STAMP}
         COMMENT "update nv bin"
         WORKING_DIRECTORY ${ROOT_DIR}

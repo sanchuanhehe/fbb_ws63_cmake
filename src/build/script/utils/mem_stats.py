@@ -693,8 +693,8 @@ def display_mismatches(lst_file, du_file):
 
 
 def main(lst_file_name, du_file_name, lds_file, chip_name, chip_version=None):
-    with open(lst_file_name, "r") as fp_lst_file_name, open(
-            du_file_name, "r") as fp_du_file_name:
+    with open(lst_file_name, "r", encoding="utf-8", errors="ignore") as fp_lst_file_name, open(
+            du_file_name, "r", encoding="utf-8", errors="ignore") as fp_du_file_name:
         lst_file = LstFile(
             fp_lst_file_name,
             lst_file_name,

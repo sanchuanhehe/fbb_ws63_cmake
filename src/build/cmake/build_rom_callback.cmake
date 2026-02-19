@@ -52,17 +52,15 @@ function(build_rom_callback)
     if(NOT DEFINED ROM_CB_EXTRACT_STAMPS)
         set(ROM_CB_EXTRACT_STAMPS)
     endif()
+    set(ROM_CB_IMAGE_ELF ${PROJECT_BINARY_DIR}/${TARGET_NAME}.elf)
 
     set(ROM_CB_BUILD_STAMP ${OBJ_TEMP_DIR}/.rom_callback.build.stamp)
     add_custom_command(
         OUTPUT ${ROM_CB_BUILD_STAMP}
         WORKING_DIRECTORY ${OBJ_TEMP_DIR}
         COMMAND ${CMAKE_COMMAND} -E make_directory ${OBJ_TEMP_DIR}
-        COMMAND ${CMAKE_LINKER} -r ${OBJ_TEMP_DIR}/*.o* -o ${OBJ_TEMP_DIR}/rom_bin.o
-        COMMAND ${CMAKE_NM} -u ${OBJ_TEMP_DIR}/rom_bin.o > rom_bin_raw.undef
-        COMMAND ${CMAKE_READELF} -W -r ${OBJ_TEMP_DIR}/rom_bin.o > rom_bin.rel
-        COMMAND ${CMAKE_READELF} -W -s ${OBJ_TEMP_DIR}/rom_bin.o > rom_symbol.list
-        COMMAND ${CMAKE_READELF} -W -s ${TARGET_NAME}.elf > image_symbol.list
+        COMMAND sh -c "if ls ./*.o* >/dev/null 2>&1; then ${CMAKE_LINKER} -r ./*.o* -o ${OBJ_TEMP_DIR}/rom_bin.o && ${CMAKE_NM} -u ${OBJ_TEMP_DIR}/rom_bin.o > rom_bin_raw.undef && ${CMAKE_READELF} -W -r ${OBJ_TEMP_DIR}/rom_bin.o > rom_bin.rel && ${CMAKE_READELF} -W -s ${OBJ_TEMP_DIR}/rom_bin.o > rom_symbol.list; else : > rom_bin_raw.undef; : > rom_bin.rel; : > rom_symbol.list; fi"
+        COMMAND ${CMAKE_READELF} -W -s ${ROM_CB_IMAGE_ELF} > image_symbol.list
         COMMAND ${CMAKE_COMMAND} -E touch ${ROM_CB_BUILD_STAMP}
         DEPENDS ${TARGET_NAME} ${ROM_CB_EXTRACT_STAMPS}
         VERBATIM

@@ -207,17 +207,61 @@ if(DEFINED FBB_TARGET AND NOT "${FBB_TARGET}" STREQUAL "")
     )
 
     if(DEFINED PACKET AND PACKET)
-        set(_FWPKG_STAMP "${PROJECT_BINARY_DIR}/fbb_package_fwpkg.stamp")
+        set(_PREPACKAGE_OUT_ROOT "${OUTPUT_ROOT}/${CHIP}/${CORE}")
+        set(_PREPACKAGE_BOOT_MANIFEST "${_PREPACKAGE_OUT_ROOT}/package_manifest/${TARGET_NAME}.json")
+        set(_PREPACKAGE_FLASHBOOT_BIN "${_PREPACKAGE_OUT_ROOT}/ws63-flashboot/flashboot.bin")
+        set(_PREPACKAGE_LOADERBOOT_BIN "${_PREPACKAGE_OUT_ROOT}/ws63-loaderboot/loaderboot.bin")
+        set(_FLASHBOOT_BUILD_DIR "${PROJECT_BINARY_DIR}/_deps/ws63-flashboot")
+        set(_LOADERBOOT_BUILD_DIR "${PROJECT_BINARY_DIR}/_deps/ws63-loaderboot")
         add_custom_command(
-            OUTPUT ${_FWPKG_STAMP}
-            COMMAND ${Python3_EXECUTABLE} ${ROOT_DIR}/tools/pkg/packet.py ${CHIP} ${PKG_TARGET_NAME} "${FBB_EXTRA_DEFINES}"
-            COMMAND ${CMAKE_COMMAND} -E touch ${_FWPKG_STAMP}
+            OUTPUT ${_PREPACKAGE_BOOT_MANIFEST} ${_PREPACKAGE_FLASHBOOT_BIN} ${_PREPACKAGE_LOADERBOOT_BIN}
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${_FLASHBOOT_BUILD_DIR}
+            COMMAND ${CMAKE_COMMAND} -S ${ROOT_DIR} -B ${_FLASHBOOT_BUILD_DIR} -G "${CMAKE_GENERATOR}" -DFBB_TARGET=ws63-flashboot -DFBB_BUILD_LEVEL=${FBB_BUILD_LEVEL}
+            COMMAND ${CMAKE_COMMAND} --build ${_FLASHBOOT_BUILD_DIR} --target kconfig-header
+            COMMAND ${CMAKE_COMMAND} --build ${_FLASHBOOT_BUILD_DIR} --target all
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${_PREPACKAGE_OUT_ROOT}/ws63-flashboot
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different ${_FLASHBOOT_BUILD_DIR}/flashboot.bin ${_PREPACKAGE_FLASHBOOT_BIN}
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${_LOADERBOOT_BUILD_DIR}
+            COMMAND ${CMAKE_COMMAND} -S ${ROOT_DIR} -B ${_LOADERBOOT_BUILD_DIR} -G "${CMAKE_GENERATOR}" -DFBB_TARGET=ws63-loaderboot -DFBB_BUILD_LEVEL=${FBB_BUILD_LEVEL}
+            COMMAND ${CMAKE_COMMAND} --build ${_LOADERBOOT_BUILD_DIR} --target kconfig-header
+            COMMAND ${CMAKE_COMMAND} --build ${_LOADERBOOT_BUILD_DIR} --target all
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${_PREPACKAGE_OUT_ROOT}/ws63-loaderboot
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different ${_LOADERBOOT_BUILD_DIR}/loaderboot.bin ${_PREPACKAGE_LOADERBOOT_BIN}
+            COMMAND ${CMAKE_COMMAND} -E env
+                    FBB_OUTPUT_ROOT=${OUTPUT_ROOT}
+                    FBB_CHIP=${CHIP}
+                    FBB_CORE=${CORE}
+                    FBB_SIGN_MANIFEST=${_PREPACKAGE_BOOT_MANIFEST}
+                    ${Python3_EXECUTABLE} ${ROOT_DIR}/build/config/target_config/${CHIP}/sign_config/params_and_bin_sign.py ${TARGET_NAME}
             WORKING_DIRECTORY ${ROOT_DIR}
-            DEPENDS ${TARGET_NAME}
+            DEPENDS ${TARGET_NAME} ${ROOT_DIR}/build/config/target_config/${CHIP}/sign_config/params_and_bin_sign.py
+            VERBATIM
+        )
+        add_custom_target(prepackage-bootloaders DEPENDS ${_PREPACKAGE_BOOT_MANIFEST} ${_PREPACKAGE_FLASHBOOT_BIN} ${_PREPACKAGE_LOADERBOOT_BIN})
+
+        set(_FWPKG_DEPS prepackage-bootloaders ${TARGET_NAME})
+        if(TARGET WS63_GENERAT_SIGNBIN)
+            list(APPEND _FWPKG_DEPS WS63_GENERAT_SIGNBIN)
+        elseif(TARGET WS53_GENERAT_SIGNBIN)
+            list(APPEND _FWPKG_DEPS WS53_GENERAT_SIGNBIN)
+        endif()
+
+        set(_FWPKG_OUT_DIR "${OUTPUT_ROOT}/${CHIP}/fwpkg/${PKG_TARGET_NAME}")
+        set(_FWPKG_ALL "${_FWPKG_OUT_DIR}/${PKG_TARGET_NAME}_all.fwpkg")
+        set(_FWPKG_LOAD_ONLY "${_FWPKG_OUT_DIR}/${PKG_TARGET_NAME}_load_only.fwpkg")
+        add_custom_command(
+            OUTPUT ${_FWPKG_ALL} ${_FWPKG_LOAD_ONLY}
+            COMMAND ${CMAKE_COMMAND} -E env
+                    FBB_OUTPUT_ROOT=${OUTPUT_ROOT}
+                    FBB_CHIP=${CHIP}
+                    FBB_CORE=${CORE}
+                    ${Python3_EXECUTABLE} ${ROOT_DIR}/tools/pkg/packet.py ${CHIP} ${PKG_TARGET_NAME} "${FBB_EXTRA_DEFINES}"
+            WORKING_DIRECTORY ${ROOT_DIR}
+            DEPENDS ${_FWPKG_DEPS} ${ROOT_DIR}/tools/pkg/packet.py ${ROOT_DIR}/tools/pkg/chip_packet/ws63/packet.py
             BYPRODUCTS ${OUTPUT_ROOT}/${CHIP}/fwpkg
             VERBATIM
         )
-        add_custom_target(package-fwpkg DEPENDS ${_FWPKG_STAMP})
+        add_custom_target(package-fwpkg DEPENDS ${_FWPKG_ALL} ${_FWPKG_LOAD_ONLY})
     endif()
 
     if(DEFINED UPG_PKG AND NOT "${UPG_PKG}" STREQUAL "")

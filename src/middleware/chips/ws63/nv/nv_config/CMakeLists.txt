@@ -10,8 +10,11 @@ set(PUBLIC_HEADER
 set(COMPONENT_NAME nv_config_ws63)
 set(BUILD_TARGETS nv_config_ws63)
 set(TARGET ${CORE})
-set(GEN_TARGET_DIR
-        ${ROOT_DIR}/output/${CHIP}/${CORE})
+if(DEFINED ENV{FBB_OUTPUT_ROOT} AND NOT "$ENV{FBB_OUTPUT_ROOT}" STREQUAL "")
+    set(GEN_TARGET_DIR $ENV{FBB_OUTPUT_ROOT}/${CHIP}/${CORE})
+else()
+    set(GEN_TARGET_DIR ${ROOT_DIR}/output/${CHIP}/${CORE})
+endif()
 set(TARGET_INCLUDE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${ROOT_DIR}/middleware/utils/common_headers/native)
@@ -25,6 +28,7 @@ if(${COMPONENT_NAME} IN_LIST BUILD_TARGETS)
     message("GEN_TARGET_SRC = ${GEN_TARGET_SRC}")
     set(PRECOMPILE_TARGET ${GEN_TARGET_DIR}/${TARGET}.etypes)
     message("PRECOMPILE_TARGET = ${PRECOMPILE_TARGET}")
+    file(MAKE_DIRECTORY ${GEN_TARGET_DIR})
     set(INCLUDE_FLAGS)
     foreach(item ${TARGET_INCLUDE})
         list(APPEND INCLUDE_FLAGS -I${item})
