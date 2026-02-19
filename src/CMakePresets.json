@@ -13,8 +13,7 @@
       "binaryDir": "${sourceDir}/.build/cmake/${presetName}",
       "cacheVariables": {
         "FBB_TARGET": "ws63-liteos-app",
-        "FBB_BUILD_LEVEL": "normal",
-        "FBB_OUTPUT_ROOT": "${sourceDir}/output"
+        "FBB_BUILD_LEVEL": "normal"
       }
     },
     {

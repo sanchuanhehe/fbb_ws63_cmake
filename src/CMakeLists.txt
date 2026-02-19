@@ -7,14 +7,14 @@ set(CMAKE_SYSTEM_NAME "Generic")
 
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 
+set(FBB_EXTRA_DEFINES "" CACHE STRING "Extra defines passed to packaging scripts")
+
 if(NOT DEFINED PY_PATH OR "${PY_PATH}" STREQUAL "")
     set(PY_PATH ${Python3_EXECUTABLE})
 endif()
 
 if(DEFINED FBB_TARGET AND NOT "${FBB_TARGET}" STREQUAL "")
-    if(NOT DEFINED FBB_OUTPUT_ROOT OR "${FBB_OUTPUT_ROOT}" STREQUAL "")
-        set(FBB_OUTPUT_ROOT "${CMAKE_CURRENT_LIST_DIR}/output")
-    endif()
+    set(FBB_OUTPUT_ROOT "${CMAKE_BINARY_DIR}")
 
     set(_FBB_GEN_DIR "${CMAKE_BINARY_DIR}/fbb_generated/${FBB_TARGET}")
     set(_FBB_TARGET_JSON "${_FBB_GEN_DIR}/target_env.json")
@@ -35,10 +35,24 @@ if(DEFINED FBB_TARGET AND NOT "${FBB_TARGET}" STREQUAL "")
     endif()
 
     include(${_FBB_TARGET_CMAKE})
-    set(ENV{FBB_OUTPUT_ROOT} "${OUTPUT_ROOT}")
+    set(ENV{FBB_OUTPUT_ROOT} "${CMAKE_BINARY_DIR}")
 
     if(DEFINED FBB_BUILD_LEVEL AND NOT "${FBB_BUILD_LEVEL}" STREQUAL "")
         set(BUILD_LEVEL ${FBB_BUILD_LEVEL})
+    endif()
+
+    set(FBB_CONTRACT_FILE "${CMAKE_BINARY_DIR}/fbb_contract.json")
+    execute_process(
+        COMMAND ${PY_PATH} ${CMAKE_CURRENT_LIST_DIR}/build/script/export_build_contract.py
+            --target-env-json ${_FBB_TARGET_JSON}
+            --cmake-binary-dir ${CMAKE_BINARY_DIR}
+            --out ${FBB_CONTRACT_FILE}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+        RESULT_VARIABLE FBB_CONTRACT_RESULT
+    )
+
+    if(NOT FBB_CONTRACT_RESULT EQUAL 0)
+        message(FATAL_ERROR "Failed to export build contract for target: ${FBB_TARGET}")
     endif()
 endif()
 
@@ -121,6 +135,28 @@ if(EXISTS ${KCONFIG_PATH})
 endif()
 
 if(DEFINED FBB_TARGET AND NOT "${FBB_TARGET}" STREQUAL "")
+    add_custom_target(build-contract
+        COMMAND ${PY_PATH} ${ROOT_DIR}/build/script/export_build_contract.py
+            --target-env-json ${_FBB_TARGET_JSON}
+            --cmake-binary-dir ${CMAKE_BINARY_DIR}
+            --out ${FBB_CONTRACT_FILE}
+        WORKING_DIRECTORY ${ROOT_DIR}
+        BYPRODUCTS ${FBB_CONTRACT_FILE}
+        VERBATIM
+    )
+
+    set(_KCONFIG_HEADER "${PROJECT_BINARY_DIR}/mconfig.h")
+    set(_KCONFIG_STAMP "${PROJECT_BINARY_DIR}/kconfig_header.stamp")
+    add_custom_command(
+        OUTPUT ${_KCONFIG_STAMP}
+        COMMAND ${Python3_EXECUTABLE} ${ROOT_DIR}/build/script/usr_config.py --command savemenuconfig --chip ${CHIP} --core ${CORE} --target ${PKG_TARGET_NAME} --output ${PROJECT_BINARY_DIR}
+        COMMAND ${CMAKE_COMMAND} -E touch ${_KCONFIG_STAMP}
+        WORKING_DIRECTORY ${ROOT_DIR}
+        DEPENDS ${ROOT_DIR}/build/script/usr_config.py
+        BYPRODUCTS ${_KCONFIG_HEADER}
+        VERBATIM
+    )
+
     add_custom_target(kconfig-menuconfig
         COMMAND ${Python3_EXECUTABLE} ${ROOT_DIR}/build/script/usr_config.py --command menuconfig --chip ${CHIP} --core ${CORE} --target ${PKG_TARGET_NAME} --output ${PROJECT_BINARY_DIR}
         WORKING_DIRECTORY ${ROOT_DIR}
@@ -140,10 +176,50 @@ if(DEFINED FBB_TARGET AND NOT "${FBB_TARGET}" STREQUAL "")
     )
 
     add_custom_target(kconfig-header
-        COMMAND ${Python3_EXECUTABLE} ${ROOT_DIR}/build/script/usr_config.py --command savemenuconfig --chip ${CHIP} --core ${CORE} --target ${PKG_TARGET_NAME} --output ${PROJECT_BINARY_DIR}
-        WORKING_DIRECTORY ${ROOT_DIR}
-        USES_TERMINAL
+        DEPENDS ${_KCONFIG_STAMP}
     )
+
+    if(DEFINED PACKET AND PACKET)
+        set(_FWPKG_STAMP "${PROJECT_BINARY_DIR}/fbb_package_fwpkg.stamp")
+        add_custom_command(
+            OUTPUT ${_FWPKG_STAMP}
+            COMMAND ${Python3_EXECUTABLE} ${ROOT_DIR}/tools/pkg/packet.py ${CHIP} ${PKG_TARGET_NAME} "${FBB_EXTRA_DEFINES}"
+            COMMAND ${CMAKE_COMMAND} -E touch ${_FWPKG_STAMP}
+            WORKING_DIRECTORY ${ROOT_DIR}
+            DEPENDS ${TARGET_NAME}
+            BYPRODUCTS ${OUTPUT_ROOT}/${CHIP}/fwpkg
+            VERBATIM
+        )
+        add_custom_target(package-fwpkg DEPENDS ${_FWPKG_STAMP})
+    endif()
+
+    if(DEFINED UPG_PKG AND NOT "${UPG_PKG}" STREQUAL "")
+        set(_FOTA_SCRIPT ${ROOT_DIR}/build/config/target_config/${CHIP}/build_${CHIP}_update.py)
+        if(EXISTS ${_FOTA_SCRIPT})
+            set(_FOTA_STAMP "${PROJECT_BINARY_DIR}/fbb_package_fota.stamp")
+            add_custom_command(
+                OUTPUT ${_FOTA_STAMP}
+                COMMAND ${Python3_EXECUTABLE} ${_FOTA_SCRIPT} ${PKG_TARGET_NAME} ${UPG_PKG}
+                COMMAND ${CMAKE_COMMAND} -E touch ${_FOTA_STAMP}
+                WORKING_DIRECTORY ${ROOT_DIR}
+                DEPENDS ${TARGET_NAME}
+                BYPRODUCTS ${OUTPUT_ROOT}/${CHIP}/fwpkg
+                VERBATIM
+            )
+            add_custom_target(package-fota DEPENDS ${_FOTA_STAMP})
+        endif()
+    endif()
+
+    set(_SDK_STAMP "${PROJECT_BINARY_DIR}/fbb_package_sdk.stamp")
+    add_custom_command(
+        OUTPUT ${_SDK_STAMP}
+        COMMAND ${Python3_EXECUTABLE} ${ROOT_DIR}/build.py pack_ws63_sdk
+        COMMAND ${CMAKE_COMMAND} -E touch ${_SDK_STAMP}
+        WORKING_DIRECTORY ${ROOT_DIR}
+        BYPRODUCTS ${OUTPUT_ROOT}/package/ws63/sdk
+        VERBATIM
+    )
+    add_custom_target(sdk-package DEPENDS ${_SDK_STAMP})
 endif()
 
 add_subdirectory_if_exist(application)
