@@ -249,9 +249,7 @@ if(DEFINED FBB_TARGET AND NOT "${FBB_TARGET}" STREQUAL "")
         add_custom_target(prepackage-bootloaders DEPENDS ${_PREPACKAGE_BOOT_MANIFEST} ${_PREPACKAGE_FLASHBOOT_BIN} ${_PREPACKAGE_LOADERBOOT_BIN})
 
         set(_FWPKG_DEPS prepackage-bootloaders ${TARGET_NAME} GENERAT_BIN)
-        if(TARGET WS63_GENERAT_SIGNBIN)
-            list(APPEND _FWPKG_DEPS WS63_GENERAT_SIGNBIN)
-        elseif(TARGET WS53_GENERAT_SIGNBIN)
+        if(TARGET WS53_GENERAT_SIGNBIN)
             list(APPEND _FWPKG_DEPS WS53_GENERAT_SIGNBIN)
         endif()
 
@@ -276,17 +274,20 @@ if(DEFINED FBB_TARGET AND NOT "${FBB_TARGET}" STREQUAL "")
     if(DEFINED UPG_PKG AND NOT "${UPG_PKG}" STREQUAL "")
         set(_FOTA_SCRIPT ${ROOT_DIR}/build/config/target_config/${CHIP}/build_${CHIP}_update.py)
         if(EXISTS ${_FOTA_SCRIPT})
-            set(_FOTA_STAMP "${PROJECT_BINARY_DIR}/fbb_package_fota.stamp")
+            set(_FOTA_MANIFEST "${OUTPUT_ROOT}/${CHIP}/upgrade/fota_manifest/${PKG_TARGET_NAME}.json")
             add_custom_command(
-                OUTPUT ${_FOTA_STAMP}
-                COMMAND ${Python3_EXECUTABLE} ${_FOTA_SCRIPT} ${PKG_TARGET_NAME} ${UPG_PKG}
-                COMMAND ${CMAKE_COMMAND} -E touch ${_FOTA_STAMP}
+                OUTPUT ${_FOTA_MANIFEST}
+                COMMAND ${CMAKE_COMMAND} -E env
+                        FBB_OUTPUT_ROOT=${OUTPUT_ROOT}
+                        FBB_CHIP=${CHIP}
+                        FBB_FOTA_MANIFEST=${_FOTA_MANIFEST}
+                        ${Python3_EXECUTABLE} ${_FOTA_SCRIPT} ${PKG_TARGET_NAME} ${UPG_PKG}
                 WORKING_DIRECTORY ${ROOT_DIR}
-                DEPENDS ${TARGET_NAME}
-                BYPRODUCTS ${OUTPUT_ROOT}/${CHIP}/fwpkg
+                DEPENDS ${TARGET_NAME} GENERAT_BIN ${_FOTA_SCRIPT}
+                BYPRODUCTS ${OUTPUT_ROOT}/${CHIP}/upgrade
                 VERBATIM
             )
-            add_custom_target(package-fota DEPENDS ${_FOTA_STAMP})
+            add_custom_target(package-fota DEPENDS ${_FOTA_MANIFEST})
         endif()
     endif()
 

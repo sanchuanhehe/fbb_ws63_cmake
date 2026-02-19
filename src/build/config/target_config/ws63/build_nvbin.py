@@ -8,6 +8,7 @@
 import os
 import sys
 import json
+import glob
 file_dir = os.path.dirname(os.path.realpath(__file__))
 g_root = os.path.realpath(os.path.join(file_dir, "..", "..", "..", ".."))
 sys.path.append(os.path.join(g_root, 'build', 'script', 'nv'))
@@ -50,3 +51,18 @@ if __name__ == '__main__':
         os.makedirs(nv_output_path)
 
     nv_begin(runtime_nv_cfg, targets, 1, True)
+
+    manifest_path = os.environ.get("FBB_NV_MANIFEST", "").strip()
+    if manifest_path:
+        os.makedirs(os.path.dirname(os.path.abspath(manifest_path)), exist_ok=True)
+        produced_bins = sorted(glob.glob(os.path.join(nv_output_path, "*.bin")))
+        manifest = {
+            "target": target_name if len(sys.argv) >= 2 else "",
+            "chip": os.environ.get("FBB_CHIP", "ws63"),
+            "core": os.environ.get("FBB_CORE", targets[0]),
+            "runtime_config": os.path.abspath(runtime_nv_cfg),
+            "output_dir": os.path.abspath(nv_output_path),
+            "produced_bins": produced_bins
+        }
+        with open(manifest_path, "w", encoding="utf-8") as manifest_file:
+            json.dump(manifest, manifest_file, ensure_ascii=False, indent=2)

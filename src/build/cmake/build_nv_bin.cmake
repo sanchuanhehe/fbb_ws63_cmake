@@ -4,25 +4,7 @@
 #===============================================================================
 
 set(NV_STAGE_OUTPUTS)
-
-if(${NV_UPDATE})
-    set(NV_UPDATE_STAMP ${PROJECT_BINARY_DIR}/nv_config/.nv_update.stamp)
-    add_custom_command(
-        OUTPUT ${NV_UPDATE_STAMP}
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${PROJECT_BINARY_DIR}/nv_config
-        COMMAND ${CMAKE_COMMAND} -E env
-            FBB_OUTPUT_ROOT=${PROJECT_BINARY_DIR}
-            FBB_CHIP=${CHIP}
-            FBB_CORE=${CORE}
-            ${Python3_EXECUTABLE} ${ROOT_DIR}/build/config/target_config/${CHIP}/build_nvbin.py ${TARGET_NAME}
-        COMMAND ${CMAKE_COMMAND} -E touch ${NV_UPDATE_STAMP}
-        COMMENT "update nv bin"
-        WORKING_DIRECTORY ${ROOT_DIR}
-        DEPENDS GENERAT_BIN
-        VERBATIM
-    )
-    list(APPEND NV_STAGE_OUTPUTS ${NV_UPDATE_STAMP})
-endif()
+set(NV_UPDATE_EXTRA_DEPENDS)
 
 if(NOT ${NV_CFG} EQUAL "")
     set(NV_CFG_JSON             ${PROJECT_BINARY_DIR}/nv_config/build_nv_config.json)
@@ -73,6 +55,7 @@ if(NOT ${NV_CFG} EQUAL "")
     add_custom_target(GENERAT_NV_INFO ALL
         DEPENDS ${PRECOMPILE_TARGET}
     )
+    list(APPEND NV_UPDATE_EXTRA_DEPENDS GENERAT_NV_INFO)
 
     if (${NV_CRC16})
         set(CRC_FLAGS True)
@@ -91,6 +74,25 @@ if(NOT ${NV_CFG} EQUAL "")
         VERBATIM
     )
     list(APPEND NV_STAGE_OUTPUTS ${NV_BIN_OUTPUT})
+endif()
+
+if(${NV_UPDATE})
+    set(NV_UPDATE_MANIFEST ${PROJECT_BINARY_DIR}/nv_config/nv_update_${TARGET_NAME}.json)
+    add_custom_command(
+        OUTPUT ${NV_UPDATE_MANIFEST}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${PROJECT_BINARY_DIR}/nv_config
+        COMMAND ${CMAKE_COMMAND} -E env
+            FBB_OUTPUT_ROOT=${PROJECT_BINARY_DIR}
+            FBB_CHIP=${CHIP}
+            FBB_CORE=${CORE}
+            FBB_NV_MANIFEST=${NV_UPDATE_MANIFEST}
+            ${Python3_EXECUTABLE} ${ROOT_DIR}/build/config/target_config/${CHIP}/build_nvbin.py ${TARGET_NAME}
+        COMMENT "update nv bin"
+        WORKING_DIRECTORY ${ROOT_DIR}
+        DEPENDS GENERAT_BIN ${NV_UPDATE_EXTRA_DEPENDS} ${ROOT_DIR}/build/config/target_config/${CHIP}/build_nvbin.py
+        VERBATIM
+    )
+    list(APPEND NV_STAGE_OUTPUTS ${NV_UPDATE_MANIFEST})
 endif()
 
 if(NV_STAGE_OUTPUTS)

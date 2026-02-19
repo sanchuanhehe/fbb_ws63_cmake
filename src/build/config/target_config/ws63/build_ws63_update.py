@@ -10,6 +10,7 @@ import sys
 import argparse
 import shutil
 import subprocess
+import json
 
 file_dir = os.path.dirname(os.path.realpath(__file__))
 g_root = os.path.realpath(os.path.join(file_dir, "..", "..", "..", ".."))
@@ -25,12 +26,18 @@ from utils.indie_upgrade_utils import check_indie_upg_match
 class upg_base_info:
     def __init__(self):
         self.root_path = g_root
+        self.chip = os.environ.get("FBB_CHIP", "ws63").strip() or "ws63"
+        fbb_output_root = os.environ.get("FBB_OUTPUT_ROOT", "").strip()
+        if fbb_output_root:
+            self.output_root = os.path.abspath(fbb_output_root)
+            self.output = os.path.join(self.output_root, self.chip)
+        else:
+            self.output_root = os.path.join(self.root_path, "output")
+            self.output = os.path.join(self.output_root, self.chip)
         # 升级包结构配置文件
         self.fota_format_path = os.path.join(self.root_path, "build", "config", "target_config", "ws63", "fota")
         # 产品升级配置文件
         self.fota_cfg = os.path.join(self.root_path, "build", "config", "target_config", "ws63", "fota", "fota.cfg")
-        # 产品镜像输出路径
-        self.output = os.path.join(self.root_path, "output", "ws63")
         # 产品升级镜像包输出路径
         self.upg_output = os.path.join(self.output, "upgrade")
         # 产品签名加密前原始镜像
@@ -40,7 +47,7 @@ class upg_base_info:
         self.temp_dir = os.path.join(self.upg_output, "temp_dir")
 
         # 产品镜像路径
-        self.flashboot = os.path.join(self.root_path, "output", "ws63", "acore","boot_bin", "flashboot_sign.bin")
+        self.flashboot = os.path.join(self.output, "acore","boot_bin", "flashboot_sign.bin")
         self.app_bin = os.path.join(self.output, "acore", "ws63-liteos-app", "ws63-liteos-app-sign.bin")
         self.app_iot_bin = os.path.join(self.output, "acore", "ws63-liteos-app-iot", "ws63-liteos-app-iot-sign.bin")
         self.app_iot_check = os.path.join(self.output, "acore", "ws63-liteos-app-iot", "ws63-liteos-app-iot-check.json")
@@ -50,7 +57,7 @@ class upg_base_info:
         self.nv_bin = os.path.join(self.output, "acore", "nv_bin", "ws63_all_nv.bin")
 
         # 签名加密前原始镜像
-        self.src_boot = os.path.join(self.root_path, "output", "ws63", "acore", "boot_bin", "flashboot.bin")
+        self.src_boot = os.path.join(self.output, "acore", "boot_bin", "flashboot.bin")
         self.src_app = os.path.join(self.output, "acore", "ws63-liteos-app", "ws63-liteos-app.bin")
         self.src_test = os.path.join(self.output, "acore", "ws63-liteos-testsuite", "ws63-liteos-testsuite.bin")
 
@@ -175,3 +182,25 @@ if __name__ == '__main__':
     conf.user_firmware_version = conf.ver
     begin(conf)
     make_pkt(info, input_param)
+
+    manifest_path = os.environ.get("FBB_FOTA_MANIFEST", "").strip()
+    if manifest_path:
+        os.makedirs(os.path.dirname(os.path.abspath(manifest_path)), exist_ok=True)
+        produced_files = []
+        if os.path.isfile(info.upg_pkt_zip):
+            produced_files.append(os.path.abspath(info.upg_pkt_zip))
+        if os.path.isdir(info.upg_output):
+            for root, _, files in os.walk(info.upg_output):
+                for name in files:
+                    if name.endswith((".fwpkg", ".upg", ".zip", ".bin")):
+                        produced_files.append(os.path.abspath(os.path.join(root, name)))
+        produced_files = sorted(set(produced_files))
+        with open(manifest_path, "w", encoding="utf-8") as manifest_file:
+            json.dump({
+                "chip": info.chip,
+                "output_root": os.path.abspath(info.output_root),
+                "upg_output": os.path.abspath(info.upg_output),
+                "packet": conf.pkt,
+                "version": conf.ver,
+                "produced_files": produced_files
+            }, manifest_file, ensure_ascii=False, indent=2)
