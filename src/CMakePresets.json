@@ -61,6 +61,33 @@
         "kconfig-header"
       ],
       "jobs": 1
+    },
+    {
+      "name": "ws63-postbuild-hso",
+      "displayName": "Postbuild HSO DB",
+      "configurePreset": "ws63-debug",
+      "targets": [
+        "postbuild-hso-db"
+      ],
+      "jobs": 1
+    },
+    {
+      "name": "ws63-postbuild-rom-callback",
+      "displayName": "Postbuild ROM Callback",
+      "configurePreset": "ws63-debug",
+      "targets": [
+        "postbuild-rom-callback"
+      ],
+      "jobs": 1
+    },
+    {
+      "name": "ws63-package-all",
+      "displayName": "Package All",
+      "configurePreset": "ws63-debug",
+      "targets": [
+        "package-all"
+      ],
+      "jobs": 1
     }
   ]
 }

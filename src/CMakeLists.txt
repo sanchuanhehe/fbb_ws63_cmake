@@ -220,6 +220,28 @@ if(DEFINED FBB_TARGET AND NOT "${FBB_TARGET}" STREQUAL "")
         VERBATIM
     )
     add_custom_target(sdk-package DEPENDS ${_SDK_STAMP})
+
+    add_custom_target(postbuild-hso-db DEPENDS HSO_DB)
+
+    if(TARGET BUILD_ROM_CALLBACK)
+        add_custom_target(postbuild-rom-callback DEPENDS BUILD_ROM_CALLBACK)
+    else()
+        add_custom_target(postbuild-rom-callback
+            COMMAND ${CMAKE_COMMAND} -E echo "BUILD_ROM_CALLBACK target is not enabled for ${FBB_TARGET}"
+            VERBATIM
+        )
+    endif()
+
+    add_custom_target(package-all)
+    if(TARGET package-fwpkg)
+        add_dependencies(package-all package-fwpkg)
+    endif()
+    if(TARGET package-fota)
+        add_dependencies(package-all package-fota)
+    endif()
+    if(TARGET sdk-package)
+        add_dependencies(package-all sdk-package)
+    endif()
 endif()
 
 add_subdirectory_if_exist(application)
