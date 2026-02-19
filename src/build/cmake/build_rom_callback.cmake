@@ -3,6 +3,16 @@ if(NOT DEFINED BUILD_ROM_CALLBACK)
 endif()
 set(OBJ_TEMP_DIR "${PROJECT_BINARY_DIR}/obj_tmp")
 
+function(rom_cb_append_extract_stamp stamp_path)
+    get_property(_rom_cb_stamps GLOBAL PROPERTY ROM_CALLBACK_EXTRACT_STAMPS)
+    if(NOT DEFINED _rom_cb_stamps OR "${_rom_cb_stamps}" STREQUAL "")
+        set(_rom_cb_stamps "${stamp_path}")
+    else()
+        list(APPEND _rom_cb_stamps ${stamp_path})
+    endif()
+    set_property(GLOBAL PROPERTY ROM_CALLBACK_EXTRACT_STAMPS "${_rom_cb_stamps}")
+endfunction()
+
 macro(reg_rom_callback)
     if(NOT TARGET ${COMPONENT_NAME})
         set(ROM_LIB ${LIBS})
@@ -18,26 +28,48 @@ macro(reg_rom_callback)
         set(DEPEND_TARGET ${COMPONENT_NAME})
     endif()
 
-    add_custom_target(GEN_ROM_CB_${COMPONENT_NAME} ALL
+    set(ROM_CB_COMPONENT_STAMP ${OBJ_TEMP_DIR}/.${COMPONENT_NAME}.extract.stamp)
+    add_custom_command(
+        OUTPUT ${ROM_CB_COMPONENT_STAMP}
         WORKING_DIRECTORY ${OBJ_TEMP_DIR}
-        COMMAND echo "${ROM_LIB}"
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${OBJ_TEMP_DIR}
         COMMAND ${CP} ${ROM_LIB} ${OBJ_TEMP_DIR}
         COMMAND ${CMAKE_AR} -x lib${COMPONENT_NAME}.a
+        COMMAND ${CMAKE_COMMAND} -E touch ${ROM_CB_COMPONENT_STAMP}
         DEPENDS ${DEPEND_TARGET}
+        VERBATIM
     )
+
+    add_custom_target(GEN_ROM_CB_${COMPONENT_NAME} ALL
+        DEPENDS ${ROM_CB_COMPONENT_STAMP}
+    )
+
+    rom_cb_append_extract_stamp(${ROM_CB_COMPONENT_STAMP})
 endmacro()
 
 function(build_rom_callback)
-    execute_process(
-        COMMAND ${MKDIR} ${OBJ_TEMP_DIR}
-    )
-    add_custom_target(BUILD_ROM_CALLBACK ALL
+    get_property(ROM_CB_EXTRACT_STAMPS GLOBAL PROPERTY ROM_CALLBACK_EXTRACT_STAMPS)
+    if(NOT DEFINED ROM_CB_EXTRACT_STAMPS)
+        set(ROM_CB_EXTRACT_STAMPS)
+    endif()
+
+    set(ROM_CB_BUILD_STAMP ${OBJ_TEMP_DIR}/.rom_callback.build.stamp)
+    add_custom_command(
+        OUTPUT ${ROM_CB_BUILD_STAMP}
+        WORKING_DIRECTORY ${OBJ_TEMP_DIR}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${OBJ_TEMP_DIR}
         COMMAND ${CMAKE_LINKER} -r ${OBJ_TEMP_DIR}/*.o* -o ${OBJ_TEMP_DIR}/rom_bin.o
         COMMAND ${CMAKE_NM} -u ${OBJ_TEMP_DIR}/rom_bin.o > rom_bin_raw.undef
         COMMAND ${CMAKE_READELF} -W -r ${OBJ_TEMP_DIR}/rom_bin.o > rom_bin.rel
         COMMAND ${CMAKE_READELF} -W -s ${OBJ_TEMP_DIR}/rom_bin.o > rom_symbol.list
         COMMAND ${CMAKE_READELF} -W -s ${TARGET_NAME}.elf > image_symbol.list
-        DEPENDS ${TARGET_NAME}
+        COMMAND ${CMAKE_COMMAND} -E touch ${ROM_CB_BUILD_STAMP}
+        DEPENDS ${TARGET_NAME} ${ROM_CB_EXTRACT_STAMPS}
+        VERBATIM
+    )
+
+    add_custom_target(BUILD_ROM_CALLBACK ALL
+        DEPENDS ${ROM_CB_BUILD_STAMP}
     )
 
 endfunction(build_rom_callback)

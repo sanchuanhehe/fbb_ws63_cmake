@@ -3,13 +3,21 @@
 # Copyright (c) HiSilicon (Shanghai) Technologies Co., Ltd. 2023-2023. All rights reserved.
 #===============================================================================
 
+set(NV_STAGE_OUTPUTS)
+
 if(${NV_UPDATE})
-    add_custom_target(GENERAT_NVBIN ALL
+    set(NV_UPDATE_STAMP ${PROJECT_BINARY_DIR}/nv_config/.nv_update.stamp)
+    add_custom_command(
+        OUTPUT ${NV_UPDATE_STAMP}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${PROJECT_BINARY_DIR}/nv_config
         COMMAND ${Python3_EXECUTABLE} ${ROOT_DIR}/build/config/target_config/${CHIP}/build_nvbin.py ${TARGET_NAME}
+        COMMAND ${CMAKE_COMMAND} -E touch ${NV_UPDATE_STAMP}
         COMMENT "update nv bin"
         WORKING_DIRECTORY ${ROOT_DIR}
         DEPENDS GENERAT_BIN
+        VERBATIM
     )
+    list(APPEND NV_STAGE_OUTPUTS ${NV_UPDATE_STAMP})
 endif()
 
 if(NOT ${NV_CFG} EQUAL "")
@@ -48,11 +56,19 @@ if(NOT ${NV_CFG} EQUAL "")
     set(GEN_TARGET_SRC ${GEN_TARGET_DIR}/${CORE}.c)
     set(PRECOMPILE_TARGET ${GEN_TARGET_DIR}/${CORE}.etypes)
 
-    add_custom_target(GENERAT_NV_INFO ALL
+    set(NV_INFO_STAMP ${PROJECT_BINARY_DIR}/nv_config/.nv_info.stamp)
+    add_custom_command(
+        OUTPUT ${NV_INFO_STAMP}
         COMMAND ${Python3_EXECUTABLE} ${BUILD_NV_GEN_UTILS} NV include ${GEN_TARGET_SRC}
         COMMAND ${CMAKE_C_COMPILER} -o ${PRECOMPILE_TARGET} ${TARGET_INCLUDE} ${TARGET_DEFINES} -E ${GEN_TARGET_SRC}
+        COMMAND ${CMAKE_COMMAND} -E touch ${NV_INFO_STAMP}
         WORKING_DIRECTORY ${ROOT_DIR}/middleware/chips/${CHIP}/nv/nv_config/${NV_CFG}
         DEPENDS GENERAT_BIN
+        VERBATIM
+    )
+
+    add_custom_target(GENERAT_NV_INFO ALL
+        DEPENDS ${NV_INFO_STAMP}
     )
 
     if (${NV_CRC16})
@@ -61,11 +77,21 @@ if(NOT ${NV_CFG} EQUAL "")
         set(CRC_FLAGS False)
     endif()
 
-    add_custom_target(GENERAT_NVBIN ALL
-        COMMAND ${Python3_EXECUTABLE} ${BUILD_NV_TOOL} ${NV_CFG_JSON} ${CORE} ${CRC_FLAGS} &&
-            ${CP} ${OUT_BIN_DIR}/${OUT_BIN_NAME} ${PROJECT_BINARY_DIR}/${OUT_BIN_NAME}
+    set(NV_BIN_OUTPUT ${PROJECT_BINARY_DIR}/${OUT_BIN_NAME})
+    add_custom_command(
+        OUTPUT ${NV_BIN_OUTPUT}
+        COMMAND ${Python3_EXECUTABLE} ${BUILD_NV_TOOL} ${NV_CFG_JSON} ${CORE} ${CRC_FLAGS}
+        COMMAND ${CP} ${OUT_BIN_DIR}/${OUT_BIN_NAME} ${NV_BIN_OUTPUT}
         COMMENT "update nv bin"
         WORKING_DIRECTORY ${ROOT_DIR}
         DEPENDS GENERAT_NV_INFO
+        VERBATIM
+    )
+    list(APPEND NV_STAGE_OUTPUTS ${NV_BIN_OUTPUT})
+endif()
+
+if(NV_STAGE_OUTPUTS)
+    add_custom_target(GENERAT_NVBIN ALL
+        DEPENDS ${NV_STAGE_OUTPUTS}
     )
 endif()
