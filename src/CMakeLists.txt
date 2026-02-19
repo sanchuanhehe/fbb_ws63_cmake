@@ -5,6 +5,43 @@
 cmake_minimum_required(VERSION 3.14.1)
 set(CMAKE_SYSTEM_NAME "Generic")
 
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
+
+if(NOT DEFINED PY_PATH OR "${PY_PATH}" STREQUAL "")
+    set(PY_PATH ${Python3_EXECUTABLE})
+endif()
+
+if(DEFINED FBB_TARGET AND NOT "${FBB_TARGET}" STREQUAL "")
+    if(NOT DEFINED FBB_OUTPUT_ROOT OR "${FBB_OUTPUT_ROOT}" STREQUAL "")
+        set(FBB_OUTPUT_ROOT "${CMAKE_CURRENT_LIST_DIR}/output")
+    endif()
+
+    set(_FBB_GEN_DIR "${CMAKE_BINARY_DIR}/fbb_generated/${FBB_TARGET}")
+    set(_FBB_TARGET_JSON "${_FBB_GEN_DIR}/target_env.json")
+    set(_FBB_TARGET_CMAKE "${_FBB_GEN_DIR}/target_env.cmake")
+
+    execute_process(
+        COMMAND ${PY_PATH} ${CMAKE_CURRENT_LIST_DIR}/build/script/export_target_env.py
+            --target ${FBB_TARGET}
+            --json-out ${_FBB_TARGET_JSON}
+            --cmake-out ${_FBB_TARGET_CMAKE}
+            --output-root ${FBB_OUTPUT_ROOT}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+        RESULT_VARIABLE FBB_EXPORT_RESULT
+    )
+
+    if(NOT FBB_EXPORT_RESULT EQUAL 0)
+        message(FATAL_ERROR "Failed to export target metadata for target: ${FBB_TARGET}")
+    endif()
+
+    include(${_FBB_TARGET_CMAKE})
+    set(ENV{FBB_OUTPUT_ROOT} "${OUTPUT_ROOT}")
+
+    if(DEFINED FBB_BUILD_LEVEL AND NOT "${FBB_BUILD_LEVEL}" STREQUAL "")
+        set(BUILD_LEVEL ${FBB_BUILD_LEVEL})
+    endif()
+endif()
+
 if(DEFINED ENV{build_ws63_sdk_open})
     set(build_lib true)
 else()
@@ -81,6 +118,32 @@ set(KCONFIG_PATH "${ROOT_DIR}/build/config/target_config/${CHIP}/menuconfig/${CO
 if(EXISTS ${KCONFIG_PATH})
     KCONFIG_GET_PARAMS(${KCONFIG_PATH})
     set(USE_KCONFIG True)
+endif()
+
+if(DEFINED FBB_TARGET AND NOT "${FBB_TARGET}" STREQUAL "")
+    add_custom_target(kconfig-menuconfig
+        COMMAND ${Python3_EXECUTABLE} ${ROOT_DIR}/build/script/usr_config.py --command menuconfig --chip ${CHIP} --core ${CORE} --target ${PKG_TARGET_NAME} --output ${PROJECT_BINARY_DIR}
+        WORKING_DIRECTORY ${ROOT_DIR}
+        USES_TERMINAL
+    )
+
+    add_custom_target(kconfig-defconfig
+        COMMAND ${Python3_EXECUTABLE} ${ROOT_DIR}/build/script/usr_config.py --command defconfig --chip ${CHIP} --core ${CORE} --target ${PKG_TARGET_NAME} --output ${PROJECT_BINARY_DIR}
+        WORKING_DIRECTORY ${ROOT_DIR}
+        USES_TERMINAL
+    )
+
+    add_custom_target(kconfig-reload
+        COMMAND ${Python3_EXECUTABLE} ${ROOT_DIR}/build/script/usr_config.py --command reloadconfig --chip ${CHIP} --core ${CORE} --target ${PKG_TARGET_NAME} --output ${PROJECT_BINARY_DIR}
+        WORKING_DIRECTORY ${ROOT_DIR}
+        USES_TERMINAL
+    )
+
+    add_custom_target(kconfig-header
+        COMMAND ${Python3_EXECUTABLE} ${ROOT_DIR}/build/script/usr_config.py --command savemenuconfig --chip ${CHIP} --core ${CORE} --target ${PKG_TARGET_NAME} --output ${PROJECT_BINARY_DIR}
+        WORKING_DIRECTORY ${ROOT_DIR}
+        USES_TERMINAL
+    )
 endif()
 
 add_subdirectory_if_exist(application)

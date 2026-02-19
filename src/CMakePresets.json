@@ -1,0 +1,67 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 21,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "ws63-base",
+      "displayName": "WS63 Base",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/.build/cmake/${presetName}",
+      "cacheVariables": {
+        "FBB_TARGET": "ws63-liteos-app",
+        "FBB_BUILD_LEVEL": "normal",
+        "FBB_OUTPUT_ROOT": "${sourceDir}/output"
+      }
+    },
+    {
+      "name": "ws63-debug",
+      "displayName": "WS63 Debug",
+      "inherits": "ws63-base",
+      "cacheVariables": {
+        "FBB_BUILD_LEVEL": "debug"
+      }
+    },
+    {
+      "name": "ws63-release",
+      "displayName": "WS63 Release",
+      "inherits": "ws63-base",
+      "cacheVariables": {
+        "FBB_BUILD_LEVEL": "release"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "ws63-build-debug",
+      "displayName": "Build WS63 Debug",
+      "configurePreset": "ws63-debug"
+    },
+    {
+      "name": "ws63-build-release",
+      "displayName": "Build WS63 Release",
+      "configurePreset": "ws63-release"
+    },
+    {
+      "name": "ws63-kconfig-menuconfig",
+      "displayName": "Kconfig Menuconfig",
+      "configurePreset": "ws63-debug",
+      "targets": [
+        "kconfig-menuconfig"
+      ],
+      "jobs": 1
+    },
+    {
+      "name": "ws63-kconfig-header",
+      "displayName": "Kconfig Generate Header",
+      "configurePreset": "ws63-debug",
+      "targets": [
+        "kconfig-header"
+      ],
+      "jobs": 1
+    }
+  ]
+}
