@@ -160,22 +160,46 @@ if(DEFINED FBB_TARGET AND NOT "${FBB_TARGET}" STREQUAL "")
         VERBATIM
     )
 
-    add_custom_target(kconfig-menuconfig
+    set(_KCONFIG_MENUCONFIG_STAMP "${PROJECT_BINARY_DIR}/kconfig_menuconfig.stamp")
+    add_custom_command(
+        OUTPUT ${_KCONFIG_MENUCONFIG_STAMP}
         COMMAND ${Python3_EXECUTABLE} ${ROOT_DIR}/build/script/usr_config.py --command menuconfig --chip ${CHIP} --core ${CORE} --target ${PKG_TARGET_NAME} --output ${PROJECT_BINARY_DIR}
+        COMMAND ${CMAKE_COMMAND} -E touch ${_KCONFIG_MENUCONFIG_STAMP}
         WORKING_DIRECTORY ${ROOT_DIR}
+        DEPENDS ${ROOT_DIR}/build/script/usr_config.py
         USES_TERMINAL
+        VERBATIM
+    )
+    add_custom_target(kconfig-menuconfig
+        DEPENDS ${_KCONFIG_MENUCONFIG_STAMP}
     )
 
-    add_custom_target(kconfig-defconfig
+    set(_KCONFIG_DEFCONFIG_STAMP "${PROJECT_BINARY_DIR}/kconfig_defconfig.stamp")
+    add_custom_command(
+        OUTPUT ${_KCONFIG_DEFCONFIG_STAMP}
         COMMAND ${Python3_EXECUTABLE} ${ROOT_DIR}/build/script/usr_config.py --command defconfig --chip ${CHIP} --core ${CORE} --target ${PKG_TARGET_NAME} --output ${PROJECT_BINARY_DIR}
+        COMMAND ${CMAKE_COMMAND} -E touch ${_KCONFIG_DEFCONFIG_STAMP}
         WORKING_DIRECTORY ${ROOT_DIR}
+        DEPENDS ${ROOT_DIR}/build/script/usr_config.py
         USES_TERMINAL
+        VERBATIM
+    )
+    add_custom_target(kconfig-defconfig
+        DEPENDS ${_KCONFIG_DEFCONFIG_STAMP}
     )
 
-    add_custom_target(kconfig-reload
+    set(_KCONFIG_RELOAD_STAMP "${PROJECT_BINARY_DIR}/kconfig_reload.stamp")
+    add_custom_command(
+        OUTPUT ${_KCONFIG_RELOAD_STAMP}
         COMMAND ${Python3_EXECUTABLE} ${ROOT_DIR}/build/script/usr_config.py --command reloadconfig --chip ${CHIP} --core ${CORE} --target ${PKG_TARGET_NAME} --output ${PROJECT_BINARY_DIR}
+        COMMAND ${CMAKE_COMMAND} -E touch ${_KCONFIG_RELOAD_STAMP}
         WORKING_DIRECTORY ${ROOT_DIR}
+        DEPENDS ${ROOT_DIR}/build/script/usr_config.py
         USES_TERMINAL
+        VERBATIM
+    )
+    add_custom_target(kconfig-reload
+        DEPENDS ${_KCONFIG_RELOAD_STAMP}
     )
 
     add_custom_target(kconfig-header
