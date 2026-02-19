@@ -4,15 +4,16 @@
 #===============================================================================
 
 function(add_sdk_stage_target target_name)
-    set(_stage_stamp ${PROJECT_BINARY_DIR}/.${target_name}.stamp)
+    set(_stage_manifest ${PROJECT_BINARY_DIR}/sdk_stage/${target_name}.manifest)
     add_custom_command(
-        OUTPUT ${_stage_stamp}
+        OUTPUT ${_stage_manifest}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${PROJECT_BINARY_DIR}/sdk_stage
         ${ARGN}
-        COMMAND ${CMAKE_COMMAND} -E touch ${_stage_stamp}
+        COMMAND ${CMAKE_COMMAND} -E touch ${_stage_manifest}
         VERBATIM
     )
     add_custom_target(${target_name} ALL
-        DEPENDS ${_stage_stamp}
+        DEPENDS ${_stage_manifest}
     )
 endfunction()
 

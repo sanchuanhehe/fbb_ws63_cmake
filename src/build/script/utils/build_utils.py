@@ -314,8 +314,14 @@ def rm_all(items):
         else:
             pass
 
-def add_len_and_sha256_info_to_ssb(source, chip=None):
-    with open(source, "rb+") as bin_file:
+def add_len_and_sha256_info_to_ssb(source, chip=None, target=None):
+    work_file = source
+    if target:
+        if os.path.abspath(target) != os.path.abspath(source):
+            os.makedirs(os.path.dirname(os.path.abspath(target)), exist_ok=True)
+            shutil.copy(source, target)
+        work_file = target
+    with open(work_file, "rb+") as bin_file:
         length = len(bin_file.read())
         if chip == "brandy":
             bin_file.seek(364, 0) # ssb length offset addr 0x16c
@@ -326,7 +332,7 @@ def add_len_and_sha256_info_to_ssb(source, chip=None):
         bin_file.write(struct.pack('<L', length))
         bin_file.close()
 
-    with open(source, "rb+") as bin_file:
+    with open(work_file, "rb+") as bin_file:
         sha = hashlib.sha256(bin_file.read())
         bin_file.write(sha.digest()[0:32])
         bin_file.close()

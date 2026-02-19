@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import platform
 import tarfile
+import json
 from typing import List
 
 PY_PATH = os.path.dirname(os.path.realpath(__file__))
@@ -40,6 +41,24 @@ def _resolve_file(paths: List[str]) -> str:
             return path
     return paths[0] if paths else ""
 
+
+def _load_manifest_outputs(manifest_path: str):
+    if not manifest_path:
+        return {}
+    try:
+        with open(manifest_path, "r", encoding="utf-8") as mf:
+            data = json.load(mf)
+    except (OSError, ValueError, TypeError):
+        return {}
+    outputs = data.get("outputs", [])
+    if not isinstance(outputs, list):
+        return {}
+    resolved = {}
+    for item in outputs:
+        if isinstance(item, str) and os.path.isfile(item):
+            resolved[os.path.basename(item)] = item
+    return resolved
+
 def get_file_size(file_path: str)->int:
     try:
         return os.stat(file_path).st_size
@@ -58,6 +77,8 @@ def make_all_in_one_packet(pack_style_str, extr_defines):
     chip = os.environ.get("FBB_CHIP", "ws63").strip() or "ws63"
     core = os.environ.get("FBB_CORE", "acore").strip() or "acore"
     caller_output_root = os.environ.get("FBB_OUTPUT_ROOT", "").strip()
+    packet_manifest = os.environ.get("FBB_PACKET_INPUT_MANIFEST", "").strip()
+    manifest_outputs = _load_manifest_outputs(packet_manifest)
 
     legacy_chip_root = os.path.join(SDK_DIR, "output", chip)
     legacy_acore_root = os.path.join(legacy_chip_root, core)
@@ -77,31 +98,31 @@ def make_all_in_one_packet(pack_style_str, extr_defines):
     efuse_bin_dir = boot_bin_dir
 
     # loader boot
-    loadboot_bin = os.path.join(boot_bin_dir, "root_loaderboot_sign.bin")
+    loadboot_bin = manifest_outputs.get("root_loaderboot_sign.bin", os.path.join(boot_bin_dir, "root_loaderboot_sign.bin"))
     loadboot_bx = loadboot_bin + "|0x0|0x200000|0"
 
     # secure stage boot
-    ssb_bin = os.path.join(boot_bin_dir, "ssb_sign.bin")
+    ssb_bin = manifest_outputs.get("ssb_sign.bin", os.path.join(boot_bin_dir, "ssb_sign.bin"))
     ssb_bx = ssb_bin + f"|0x202000|{hex(get_file_size(ssb_bin))}|1"
 
     # flash boot
-    flashboot_bin = os.path.join(boot_bin_dir, "flashboot_sign.bin")
+    flashboot_bin = manifest_outputs.get("flashboot_sign.bin", os.path.join(boot_bin_dir, "flashboot_sign.bin"))
     flashboot_bx = flashboot_bin + f"|0x220000|{hex(get_file_size(flashboot_bin))}|1"
 
     # flash boot backup
-    flashboot_backup_bin = os.path.join(boot_bin_dir, "flashboot_backup_sign.bin")
+    flashboot_backup_bin = manifest_outputs.get("flashboot_backup_sign.bin", os.path.join(boot_bin_dir, "flashboot_backup_sign.bin"))
     flashboot_backup_bx = flashboot_backup_bin + f"|0x210000|{hex(get_file_size(flashboot_backup_bin))}|1"
 
     # params
-    params_bin = os.path.join(param_bin_dir, "root_params_sign.bin")
+    params_bin = manifest_outputs.get("root_params_sign.bin", os.path.join(param_bin_dir, "root_params_sign.bin"))
     params_bx = params_bin + f"|0x200000|{hex(get_file_size(params_bin))}|1"
 
     # nv
-    nv_bin = os.path.join(nv_bin_dir, "ws63_all_nv.bin")
+    nv_bin = manifest_outputs.get("ws63_all_nv.bin", os.path.join(nv_bin_dir, "ws63_all_nv.bin"))
     nv_bx = nv_bin + f"|0x5FC000|0x4000|1"
 
     # nv backup
-    nv_backup_bin = os.path.join(nv_bin_dir, "ws63_all_nv_factory.bin")
+    nv_backup_bin = manifest_outputs.get("ws63_all_nv_factory.bin", os.path.join(nv_bin_dir, "ws63_all_nv_factory.bin"))
     nv_backup_bx = nv_backup_bin + f"|0x20C000|0x4000|1"
 
     # hilink
@@ -122,7 +143,7 @@ def make_all_in_one_packet(pack_style_str, extr_defines):
         hilink_bx = hilink_bin + f"|0x3F0000|{hex(get_file_size(hilink_bin))}|1"
 
     # efuse bin
-    efuse_bin = os.path.join(efuse_bin_dir, "efuse_cfg.bin")
+    efuse_bin = manifest_outputs.get("efuse_cfg.bin", os.path.join(efuse_bin_dir, "efuse_cfg.bin"))
     efuse_bx = efuse_bin + "|0x0|0x200000|3"
 
     # app and rom

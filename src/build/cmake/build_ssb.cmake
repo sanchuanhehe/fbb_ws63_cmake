@@ -5,17 +5,16 @@
 
 if(DEFINED APPLICATION)
 if(${APPLICATION} STREQUAL "ssb")
-set(ADD_SHA_TO_SSB_STAMP ${PROJECT_BINARY_DIR}/.add_sha_to_ssb.stamp)
+set(ADD_SHA_TO_SSB_OUTPUT ${PROJECT_BINARY_DIR}/${TARGET_NAME}_sha.bin)
 add_custom_command(
-    OUTPUT ${ADD_SHA_TO_SSB_STAMP}
-    COMMAND ${Python3_EXECUTABLE} ${BUILD_UTILS} add_len_and_sha256_info_to_ssb ${TARGET_NAME}.bin ${CHIP}
-    COMMAND ${CMAKE_COMMAND} -E touch ${ADD_SHA_TO_SSB_STAMP}
+    OUTPUT ${ADD_SHA_TO_SSB_OUTPUT}
+    COMMAND ${Python3_EXECUTABLE} ${BUILD_UTILS} add_len_and_sha256_info_to_ssb ${TARGET_NAME}.bin ${CHIP} ${ADD_SHA_TO_SSB_OUTPUT}
     COMMENT "add ssb length and sha256 info into ssb.bin"
     WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
     DEPENDS GENERAT_BIN
 )
 add_custom_target(ADD_SHA_TO_SSB ALL
-    DEPENDS ${ADD_SHA_TO_SSB_STAMP}
+    DEPENDS ${ADD_SHA_TO_SSB_OUTPUT}
 )
 endif()
 endif()

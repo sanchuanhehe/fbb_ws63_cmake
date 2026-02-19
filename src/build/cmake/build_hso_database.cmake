@@ -36,16 +36,16 @@ function(create_hso_db)
     endif()
 
     set(XML_FILE ${ROOT_DIR}/build/config/target_config/${XML_CHIP}/hdb_config/database_template/acore/system/hdbcfg/mss_cmd_db.xml)
-    set(HSO_DB_MKDIR_STAMP ${PROJECT_BINARY_DIR}/hso_temp/.mkdir.stamp)
+    set(HSO_DB_MKDIR_MANIFEST ${PROJECT_BINARY_DIR}/hso_temp/mkdir.manifest)
     add_custom_command(
-        OUTPUT ${HSO_DB_MKDIR_STAMP}
+        OUTPUT ${HSO_DB_MKDIR_MANIFEST}
         COMMAND ${Python3_EXECUTABLE} ${MAK_HSO_XML} mkdir ${ROOT_DIR}/ ${XML_CHIP} ${CORE}
-        COMMAND ${CMAKE_COMMAND} -E touch ${HSO_DB_MKDIR_STAMP}
+        COMMAND ${CMAKE_COMMAND} -E touch ${HSO_DB_MKDIR_MANIFEST}
         COMMENT "HSO_DB Makedir"
         VERBATIM
     )
     add_custom_target(HSO_DB_MKDIR
-        DEPENDS ${HSO_DB_MKDIR_STAMP}
+        DEPENDS ${HSO_DB_MKDIR_MANIFEST}
     )
 
     if(DEFINED LOG_CUSTOM_ENABLE)
@@ -81,7 +81,7 @@ function(create_hso_db)
             COMMAND ${CP} ${PROJECT_BINARY_DIR}/hso_temp/${COMPONENT}_temp.txt ${PROJECT_BINARY_DIR}/hso_temp/${COMPONENT}.txt
             COMMAND ${Python3_EXECUTABLE} ${MAK_HSO_XML} ${ROOT_DIR}/ ${XML_CHIP} ${CORE} ${ARCH} ${COMPONENT_AUTO_DEF_RESOLVED} ${COMPONENT_MODULE_NAME_RESOLVED} ${CLOSED_FLAG} ${PROJECT_BINARY_DIR}/hso_temp/${COMPONENT}.txt
             COMMENT "Building HSO_DB_${COMPONENT}"
-            DEPENDS ${COMPONENT_SOURCES_RESOLVED} ${LOG_DEF_LIST_RESOLVED} ${HSO_DB_MKDIR_STAMP}
+            DEPENDS ${COMPONENT_SOURCES_RESOLVED} ${LOG_DEF_LIST_RESOLVED} ${HSO_DB_MKDIR_MANIFEST}
             VERBATIM
         )
         list(APPEND HSO_DB_COMPONENT_OUTPUTS ${PROJECT_BINARY_DIR}/hso_temp/${COMPONENT}.txt)
@@ -94,35 +94,35 @@ function(create_hso_db)
         set(HSO_ENABLE_BT FALSE)
     endif()
     if(${CORE} STREQUAL "bt_core" OR ${HSO_ENABLE_BT} STREQUAL "True")
-        set(HSO_DB_BT_STATUS_STAMP ${PROJECT_BINARY_DIR}/hso_temp/.bt_status.stamp)
+        set(HSO_DB_BT_STATUS_MANIFEST ${PROJECT_BINARY_DIR}/hso_temp/bt_status.manifest)
         add_custom_command(
-            OUTPUT ${HSO_DB_BT_STATUS_STAMP}
+            OUTPUT ${HSO_DB_BT_STATUS_MANIFEST}
             COMMAND ${Python3_EXECUTABLE} ${BT_STATUS_HSO_XML} ${ROOT_DIR}/ ${XML_CHIP}
             COMMAND ${Python3_EXECUTABLE} ${OTA_MSG_HSO_XML}   ${ROOT_DIR}/ ${XML_CHIP}
-            COMMAND ${CMAKE_COMMAND} -E touch ${HSO_DB_BT_STATUS_STAMP}
+            COMMAND ${CMAKE_COMMAND} -E touch ${HSO_DB_BT_STATUS_MANIFEST}
             VERBATIM
         )
         add_custom_target(HSO_DB_BT_STATUS
-            DEPENDS ${HSO_DB_BT_STATUS_STAMP}
+            DEPENDS ${HSO_DB_BT_STATUS_MANIFEST}
         )
         add_dependencies(HSO_DB HSO_DB_BT_STATUS)
     else()
-        set(HSO_DB_BT_STATUS_STAMP)
+        set(HSO_DB_BT_STATUS_MANIFEST)
     endif()
 
-    set(HSO_DB_MERGE_STAMP ${PROJECT_BINARY_DIR}/hso_temp/.merge_db.stamp)
+    set(HSO_DB_MERGE_MANIFEST ${PROJECT_BINARY_DIR}/hso_temp/merge_db.manifest)
     add_custom_command(
-        OUTPUT ${HSO_DB_MERGE_STAMP}
+        OUTPUT ${HSO_DB_MERGE_MANIFEST}
         COMMAND ${Python3_EXECUTABLE} ${HSO_XML_PRE_PROCESS} ${ROOT_DIR}/ ${XML_CHIP} ${CORE}
         COMMAND ${Python3_EXECUTABLE} ${HSO_XML_MERGE} ${ROOT_DIR}/ ${XML_CHIP} ${CORE} "${HSO_ENABLE_BT}"
         COMMAND ${Python3_EXECUTABLE} ${HSO_XML_DB_CREATE} ${ROOT_DIR}/ ${XML_CHIP}
-        COMMAND ${CMAKE_COMMAND} -E touch ${HSO_DB_MERGE_STAMP}
+        COMMAND ${CMAKE_COMMAND} -E touch ${HSO_DB_MERGE_MANIFEST}
         COMMENT "Merge HSO_XML & Create HSO_DB"
-        DEPENDS ${HSO_DB_COMPONENT_OUTPUTS} ${HSO_DB_BT_STATUS_STAMP} ${HSO_DB_MKDIR_STAMP}
+        DEPENDS ${HSO_DB_COMPONENT_OUTPUTS} ${HSO_DB_BT_STATUS_MANIFEST} ${HSO_DB_MKDIR_MANIFEST}
         VERBATIM
     )
     add_custom_target(HSO_DB_MERGE
-        DEPENDS ${HSO_DB_MERGE_STAMP}
+        DEPENDS ${HSO_DB_MERGE_MANIFEST}
     )
     if(NOT DEFINED GEN_PARSE_TOOL)
         set(HSO_ENABLE_BT FALSE)
@@ -132,17 +132,17 @@ function(create_hso_db)
         set(INFO_FILE ${PROJECT_BINARY_DIR}/${BIN_NAME}.info)
         set(NM_FILE ${PROJECT_BINARY_DIR}/${BIN_NAME}.nm)
         set(PARSE_TOOL_DIR "${PROJECT_BINARY_DIR}/parse_tool")
-        set(HSO_DB_PARSE_STAMP ${PROJECT_BINARY_DIR}/hso_temp/.parse_tool.stamp)
+        set(HSO_DB_PARSE_MANIFEST ${PROJECT_BINARY_DIR}/hso_temp/parse_tool.manifest)
         add_custom_command(
-            OUTPUT ${HSO_DB_PARSE_STAMP}
+            OUTPUT ${HSO_DB_PARSE_MANIFEST}
             COMMAND ${Python3_EXECUTABLE} ${HSO_PARSE_MAIN} ${PARSE_TOOL_DIR} ${INFO_FILE} ${NM_FILE} ${XML_FILE}
             COMMAND ${CP_PY} ${HSO_PARSE_DIR}/ ${PARSE_TOOL_DIR} "none" *.py
-            COMMAND ${CMAKE_COMMAND} -E touch ${HSO_DB_PARSE_STAMP}
-            DEPENDS ${HSO_DB_MERGE_STAMP} ${INFO_FILE} ${NM_FILE} ${XML_FILE}
+            COMMAND ${CMAKE_COMMAND} -E touch ${HSO_DB_PARSE_MANIFEST}
+            DEPENDS ${HSO_DB_MERGE_MANIFEST} ${INFO_FILE} ${NM_FILE} ${XML_FILE}
             VERBATIM
         )
         add_custom_target(HSO_DB_PARSE
-            DEPENDS ${HSO_DB_PARSE_STAMP}
+            DEPENDS ${HSO_DB_PARSE_MANIFEST}
         )
         add_dependencies(HSO_DB HSO_DB_PARSE)
     else()

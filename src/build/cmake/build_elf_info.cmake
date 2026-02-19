@@ -6,9 +6,10 @@
 set(BUILT_LDS ${CMAKE_BINARY_DIR}/linker.lds)
 
 macro(add_stamp_stage_target target_name)
-    set(_stage_stamp ${PROJECT_BINARY_DIR}/.${target_name}.stamp)
+    set(_stage_stamp ${PROJECT_BINARY_DIR}/stage_manifest/${target_name}.manifest)
     add_custom_command(
         OUTPUT ${_stage_stamp}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${PROJECT_BINARY_DIR}/stage_manifest
         ${ARGN}
         COMMAND ${CMAKE_COMMAND} -E touch ${_stage_stamp}
     )

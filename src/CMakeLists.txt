@@ -180,32 +180,34 @@ if(DEFINED FBB_TARGET AND NOT "${FBB_TARGET}" STREQUAL "")
         DEPENDS ${_KCONFIG_MENUCONFIG_STAMP}
     )
 
-    set(_KCONFIG_DEFCONFIG_STAMP "${PROJECT_BINARY_DIR}/kconfig_defconfig.stamp")
+    set(_KCONFIG_DEFCONFIG_STATE "${PROJECT_BINARY_DIR}/kconfig_state/defconfig.json")
     add_custom_command(
-        OUTPUT ${_KCONFIG_DEFCONFIG_STAMP}
+        OUTPUT ${_KCONFIG_DEFCONFIG_STATE}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${PROJECT_BINARY_DIR}/kconfig_state
         COMMAND ${Python3_EXECUTABLE} ${ROOT_DIR}/build/script/usr_config.py --command defconfig --chip ${CHIP} --core ${CORE} --target ${PKG_TARGET_NAME} --output ${PROJECT_BINARY_DIR}
-        COMMAND ${CMAKE_COMMAND} -E touch ${_KCONFIG_DEFCONFIG_STAMP}
+        COMMAND ${CMAKE_COMMAND} -E touch ${_KCONFIG_DEFCONFIG_STATE}
         WORKING_DIRECTORY ${ROOT_DIR}
         DEPENDS ${ROOT_DIR}/build/script/usr_config.py
         USES_TERMINAL
         VERBATIM
     )
     add_custom_target(kconfig-defconfig
-        DEPENDS ${_KCONFIG_DEFCONFIG_STAMP}
+        DEPENDS ${_KCONFIG_DEFCONFIG_STATE}
     )
 
-    set(_KCONFIG_RELOAD_STAMP "${PROJECT_BINARY_DIR}/kconfig_reload.stamp")
+    set(_KCONFIG_RELOAD_STATE "${PROJECT_BINARY_DIR}/kconfig_state/reload.json")
     add_custom_command(
-        OUTPUT ${_KCONFIG_RELOAD_STAMP}
+        OUTPUT ${_KCONFIG_RELOAD_STATE}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${PROJECT_BINARY_DIR}/kconfig_state
         COMMAND ${Python3_EXECUTABLE} ${ROOT_DIR}/build/script/usr_config.py --command reloadconfig --chip ${CHIP} --core ${CORE} --target ${PKG_TARGET_NAME} --output ${PROJECT_BINARY_DIR}
-        COMMAND ${CMAKE_COMMAND} -E touch ${_KCONFIG_RELOAD_STAMP}
+        COMMAND ${CMAKE_COMMAND} -E touch ${_KCONFIG_RELOAD_STATE}
         WORKING_DIRECTORY ${ROOT_DIR}
         DEPENDS ${ROOT_DIR}/build/script/usr_config.py
         USES_TERMINAL
         VERBATIM
     )
     add_custom_target(kconfig-reload
-        DEPENDS ${_KCONFIG_RELOAD_STAMP}
+        DEPENDS ${_KCONFIG_RELOAD_STATE}
     )
 
     add_custom_target(kconfig-header
@@ -262,6 +264,7 @@ if(DEFINED FBB_TARGET AND NOT "${FBB_TARGET}" STREQUAL "")
                     FBB_OUTPUT_ROOT=${OUTPUT_ROOT}
                     FBB_CHIP=${CHIP}
                     FBB_CORE=${CORE}
+                FBB_PACKET_INPUT_MANIFEST=${_PREPACKAGE_BOOT_MANIFEST}
                     ${Python3_EXECUTABLE} ${ROOT_DIR}/tools/pkg/packet.py ${CHIP} ${PKG_TARGET_NAME} "${FBB_EXTRA_DEFINES}"
             WORKING_DIRECTORY ${ROOT_DIR}
             DEPENDS ${_FWPKG_DEPS} ${ROOT_DIR}/tools/pkg/packet.py ${ROOT_DIR}/tools/pkg/chip_packet/ws63/packet.py
