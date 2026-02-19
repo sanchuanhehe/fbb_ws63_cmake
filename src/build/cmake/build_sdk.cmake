@@ -97,30 +97,50 @@ file(WRITE ${TOOLCHAIN_FILE}
 }")
 endmacro(add_tooltrain)
 
+function(get_component_meta out_var component_name key_name)
+    get_property(_meta_value GLOBAL PROPERTY COMPONENT_META_${component_name}_${key_name})
+    if((NOT DEFINED _meta_value OR "${_meta_value}" STREQUAL "") AND DEFINED ${component_name}_${key_name})
+        set(_meta_value "${${component_name}_${key_name}}")
+    endif()
+    set(${out_var} "${_meta_value}" PARENT_SCOPE)
+endfunction()
+
+function(get_global_property_or_var out_var property_name fallback_var)
+    get_property(_value GLOBAL PROPERTY ${property_name})
+    if((NOT DEFINED _value OR "${_value}" STREQUAL "") AND DEFINED ${fallback_var})
+        set(_value "${${fallback_var}}")
+    endif()
+    set(${out_var} "${_value}" PARENT_SCOPE)
+endfunction()
+
 macro(sdk_export_component type)
 if (DEFINED SDK_OUTPUT_PATH)
     set(COMPONENT_INFO ${PROJECT_BINARY_DIR}/component_info/info.json)
     if(${type} STREQUAL "start")
-        set(START_SYMBOL "" CACHE INTERNAL "" FORCE)
+        set_property(GLOBAL PROPERTY SDK_EXPORT_START_SYMBOL "")
         file(WRITE ${COMPONENT_INFO} "{\n")
         file(APPEND ${COMPONENT_INFO} 
         "\"COMPONENTS\":{")
     elseif(${type} STREQUAL "end")
+        get_global_property_or_var(ALL_PUBLIC_HEADER_RESOLVED ALL_PUBLIC_HEADER ALL_PUBLIC_HEADER)
+        get_global_property_or_var(ALL_PUBLIC_DEFINES_RESOLVED ALL_PUBLIC_DEFINES ALL_PUBLIC_DEFINES)
+        get_global_property_or_var(ALL_PUBLIC_CCFLAGS_RESOLVED ALL_PUBLIC_CCFLAGS ALL_PUBLIC_CCFLAGS)
+        get_global_property_or_var(LOG_DEF_LIST_RESOLVED LOG_DEF_LIST LOG_DEF_LIST)
         set(PUBLIC_INCLUDES)
-        foreach(pub_header ${ALL_PUBLIC_HEADER})
+        foreach(pub_header ${ALL_PUBLIC_HEADER_RESOLVED})
             get_filename_component(header ${pub_header} ABSOLUTE)
             if (NOT ${header} IN_LIST PUBLIC_INCLUDES)
                 set(PUBLIC_INCLUDES ${PUBLIC_INCLUDES} ${header})
             endif()
         endforeach()
-        list(REMOVE_DUPLICATES ALL_PUBLIC_DEFINES)
-        list(REMOVE_DUPLICATES ALL_PUBLIC_CCFLAGS)
-        list(REMOVE_DUPLICATES LOG_DEF_LIST)
+        list(REMOVE_DUPLICATES ALL_PUBLIC_DEFINES_RESOLVED)
+        list(REMOVE_DUPLICATES ALL_PUBLIC_CCFLAGS_RESOLVED)
+        list(REMOVE_DUPLICATES LOG_DEF_LIST_RESOLVED)
         set(STD_LIB_DIR ${LIB_GCC} ${LIB_C} ${LIB_CXX})
         file(APPEND ${COMPONENT_INFO} "},")
         file(APPEND ${COMPONENT_INFO} "\"PUBLIC_INCLUDES\": \"${PUBLIC_INCLUDES}\",\n")
-        file(APPEND ${COMPONENT_INFO} "\"PUBLIC_DEFINES\": \"${ALL_PUBLIC_DEFINES}\",\n")
-        file(APPEND ${COMPONENT_INFO} "\"PUBLIC_CCFLAGS\": \"${ALL_PUBLIC_CCFLAGS}\",\n")
+        file(APPEND ${COMPONENT_INFO} "\"PUBLIC_DEFINES\": \"${ALL_PUBLIC_DEFINES_RESOLVED}\",\n")
+        file(APPEND ${COMPONENT_INFO} "\"PUBLIC_CCFLAGS\": \"${ALL_PUBLIC_CCFLAGS_RESOLVED}\",\n")
         file(APPEND ${COMPONENT_INFO} "\"BIN_NAME\": \"${BIN_NAME}\",\n")
         file(APPEND ${COMPONENT_INFO} "\"LINKFLAGS\": \"${LINKFLAGS}\",\n")
         file(APPEND ${COMPONENT_INFO} "\"STD_LIB_DIR\": \"${STD_LIB_DIR}\",\n")
@@ -130,9 +150,12 @@ if (DEFINED SDK_OUTPUT_PATH)
         file(APPEND ${COMPONENT_INFO} "\"KERNEL\": \"${OS}\",\n")
         file(APPEND ${COMPONENT_INFO} "\"LOS_ROOT\": \"${LOS_ROOT}\",\n")
         file(APPEND ${COMPONENT_INFO} "\"LOS_PUB_CCFLAGS\": \"${LOS_PUB_CCFLAGS}\",\n")
-        file(APPEND ${COMPONENT_INFO} "\"LOG_DEF_LIST\": \"${LOG_DEF_LIST}\"\n")
+        file(APPEND ${COMPONENT_INFO} "\"LOG_DEF_LIST\": \"${LOG_DEF_LIST_RESOLVED}\"\n")
         file(APPEND ${COMPONENT_INFO} "}")
     elseif(${type} STREQUAL "third_party")
+        get_property(START_SYMBOL GLOBAL PROPERTY SDK_EXPORT_START_SYMBOL)
+        get_component_meta(COMPONENT_MODULE_NAME ${COMPONENT_NAME} MODULE_NAME)
+        get_component_meta(COMPONENT_AUTO_DEF ${COMPONENT_NAME} AUTO_DEF)
         if(DEFINED LIB_DIR)
             set(LINK_LIB_DIR ${LIB_DIR})
         else()
@@ -148,11 +171,16 @@ if (DEFINED SDK_OUTPUT_PATH)
             \"LIB_DIR\":\"${LINK_LIB_DIR}\",
             \"COMPONENT_CUSTOM_CCFLAGS\":\"${COMPONENT_CUSTOM_CCFLAGS}\",
             \"COMPONENT_CUSTOM_DEFINES\":\"${COMPONENT_CUSTOM_DEFINES}\",
-            \"LIBS\":\"${LIBS}\"
+            \"LIBS\":\"${LIBS}\",
+            \"MODULE_NAME\":\"${COMPONENT_MODULE_NAME}\",
+            \"AUTO_DEF\":\"${COMPONENT_AUTO_DEF}\"
             }
             ")
-        set(START_SYMBOL "," CACHE INTERNAL "" FORCE)
+        set_property(GLOBAL PROPERTY SDK_EXPORT_START_SYMBOL ",")
     else()
+        get_property(START_SYMBOL GLOBAL PROPERTY SDK_EXPORT_START_SYMBOL)
+        get_component_meta(COMPONENT_MODULE_NAME ${COMPONENT_NAME} MODULE_NAME)
+        get_component_meta(COMPONENT_AUTO_DEF ${COMPONENT_NAME} AUTO_DEF)
         if(DEFINED LIB_DIR)
             set(LINK_LIB_DIR ${LIB_DIR})
         else()
@@ -176,8 +204,8 @@ if (DEFINED SDK_OUTPUT_PATH)
             \"WHOLE_LINK\": \"${WHOLE_ARCHIV}\",
             \"LIB_DIR\":\"${LINK_LIB_DIR}\",
             \"LIBS\":\"${LIBS}\",
-            \"MODULE_NAME\":\"${${COMPONENT_NAME}_MODULE_NAME}\",
-            \"AUTO_DEF\":\"${${COMPONENT_NAME}_AUTO_DEF}\"
+            \"MODULE_NAME\":\"${COMPONENT_MODULE_NAME}\",
+            \"AUTO_DEF\":\"${COMPONENT_AUTO_DEF}\"
             }
             ")
         else()
@@ -190,13 +218,13 @@ if (DEFINED SDK_OUTPUT_PATH)
             \"PRIVATE_CCFLAGS\": \"${COMPONENT_CCFLAGS}\",
             \"WHOLE_LINK\": \"${WHOLE_ARCHIV}\",
             \"LIB_DIR\":\"${LINK_LIB_DIR}\",
-	        \"LIBS\":\"${LIBS}\",
-            \"MODULE_NAME\":\"${${COMPONENT_NAME}_MODULE_NAME}\",
-            \"AUTO_DEF\":\"${${COMPONENT_NAME}_AUTO_DEF}\"
+            \"LIBS\":\"${LIBS}\",
+            \"MODULE_NAME\":\"${COMPONENT_MODULE_NAME}\",
+            \"AUTO_DEF\":\"${COMPONENT_AUTO_DEF}\"
             }
             ")
         endif()
-        set(START_SYMBOL "," CACHE INTERNAL "" FORCE)
+        set_property(GLOBAL PROPERTY SDK_EXPORT_START_SYMBOL ",")
     endif()
 endif()
 endmacro()
@@ -208,15 +236,17 @@ function(generate_project_file)
     set(COMPONENT_INFO ${PROJECT_BINARY_DIR}/component_info/info.json)
     add_tooltrain()
     set(CC_JSON  "${PROJECT_BINARY_DIR}/compile_commands.json")
-    if("${SDK_PROJECT_FILE_DIR}" STREQUAL "" )
-    set(SDK_PROJECT_FILE_DIR  "${CMAKE_CURRENT_SOURCE_DIR}")
+    get_global_property_or_var(SDK_PROJECT_FILE_DIR_RESOLVED SDK_PROJECT_FILE_DIR SDK_PROJECT_FILE_DIR)
+    get_global_property_or_var(MAIN_COMPONENT_RESOLVED MAIN_COMPONENT MAIN_COMPONENT)
+    if("${SDK_PROJECT_FILE_DIR_RESOLVED}" STREQUAL "" )
+        set(SDK_PROJECT_FILE_DIR_RESOLVED "${CMAKE_CURRENT_SOURCE_DIR}")
     endif()
-    string(REPLACE "${PROJECT_SOURCE_DIR}" "${SDK_OUTPUT_PATH}" SDK_CURRENT_DIR ${SDK_PROJECT_FILE_DIR})
+    string(REPLACE "${PROJECT_SOURCE_DIR}" "${SDK_OUTPUT_PATH}" SDK_CURRENT_DIR ${SDK_PROJECT_FILE_DIR_RESOLVED})
     string(REPLACE "${PROJECT_SOURCE_DIR}" "${SDK_OUTPUT_PATH}" SDK_CURRENT_COMPILER_DIR ${COMPILER_ROOT})
     list(JOIN SDK_TYPE "," SDK_TYPE_LIST)
 
     add_custom_target(GEN_PROJECT ALL
-        COMMAND ${Python3_EXECUTABLE} ${PRO_GEN} "${SDK_TYPE_LIST}" "${MAIN_COMPONENT}" "${CC_JSON}" "${SDK_CURRENT_DIR}" "${PROJECT_SOURCE_DIR}" "${SDK_OUTPUT_PATH}" "${CHIP},${CORE},${BOARD},${ARCH},${OS},${PKG_TARGET_NAME}" "${TOOLCHAIN_FILE}" "${COMPONENT_INFO}"
+        COMMAND ${Python3_EXECUTABLE} ${PRO_GEN} "${SDK_TYPE_LIST}" "${MAIN_COMPONENT_RESOLVED}" "${CC_JSON}" "${SDK_CURRENT_DIR}" "${PROJECT_SOURCE_DIR}" "${SDK_OUTPUT_PATH}" "${CHIP},${CORE},${BOARD},${ARCH},${OS},${PKG_TARGET_NAME}" "${TOOLCHAIN_FILE}" "${COMPONENT_INFO}"
         WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
         COMMENT "Generating project file..."
     )
