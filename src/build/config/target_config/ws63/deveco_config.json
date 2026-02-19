@@ -13,16 +13,16 @@
                     "kconfig"
                 ],
                 "build": {
-                    "build_command": "./build.py",
-                    "build_argv": "ws63-liteos-app",
+                    "build_command": "python3",
+                    "build_argv": "build/script/cmake_build.py ws63-liteos-app",
                     "custom_build_command": {
                         "ws63-liteos-app": {
-                            "build_command": "./build.py",
-                            "build_argv": "ws63-liteos-app"
+                            "build_command": "python3",
+                            "build_argv": "build/script/cmake_build.py ws63-liteos-app"
                         },
                         "ws63-liteos-app-radar": {
-                            "build_command": "./build.py",
-                            "build_argv": "ws63-liteos-app-radar"
+                            "build_command": "python3",
+                            "build_argv": "build/script/cmake_build.py ws63-liteos-app-radar"
                         }
                     }
                 },

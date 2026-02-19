@@ -16,7 +16,7 @@ from sdk_generator.target_config_genarator import genarate_reserve_config
 
 sdk_copy_common_files = [
     os.path.join(script_path),
-    os.path.join(root_path, 'build.py'),
+    os.path.join(root_path, 'CMakePresets.json'),
     os.path.join(target_config_path),
     os.path.join(pkg_tools_path),
     os.path.join(jlink_tools_path),
@@ -239,7 +239,7 @@ class SdkGenerator:
         print(build_targets)
         sdk_type_list = self.env.get('sdk_type').split(';')
         for idx, target in enumerate(build_targets):
-            sdk_build_cmd = ['./build.py', target]
+            sdk_build_cmd = [sys.executable, 'build/script/cmake_build.py', target]
             if build_time != '':
                 sdk_build_cmd.append("-build_time=%s" %build_time)
             if nhso == True:

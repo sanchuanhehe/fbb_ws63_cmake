@@ -15,8 +15,9 @@ def get_file_size(file_path: str)->int:
         print(e)
         exit(-1)
 
-cmd_app = [os.path.join(sdk_root_path, "build.py"), "ws63-liteos-app"]
-cmd_mfg = [os.path.join(sdk_root_path, "build.py"), "ws63-liteos-mfg"]
+cmake_build = os.path.join(sdk_root_path, "build", "script", "cmake_build.py")
+cmd_app = [sys.executable, cmake_build, "ws63-liteos-app"]
+cmd_mfg = [sys.executable, cmake_build, "ws63-liteos-mfg"]
 
 ret_app = subprocess.run(cmd_app, cwd=sdk_root_path)
 ret_mfg = subprocess.run(cmd_mfg, cwd=sdk_root_path)

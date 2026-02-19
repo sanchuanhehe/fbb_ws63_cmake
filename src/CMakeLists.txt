@@ -211,12 +211,24 @@ if(DEFINED FBB_TARGET AND NOT "${FBB_TARGET}" STREQUAL "")
     endif()
 
     set(_SDK_STAMP "${PROJECT_BINARY_DIR}/fbb_package_sdk.stamp")
+    set(_SDK_PACKAGE_DEPENDS build-contract ${TARGET_NAME})
+    if(TARGET package-fwpkg)
+        list(APPEND _SDK_PACKAGE_DEPENDS package-fwpkg)
+    endif()
+    if(TARGET package-fota)
+        list(APPEND _SDK_PACKAGE_DEPENDS package-fota)
+    endif()
+    if(TARGET HSO_DB)
+        list(APPEND _SDK_PACKAGE_DEPENDS HSO_DB)
+    endif()
+    if(TARGET BUILD_ROM_CALLBACK)
+        list(APPEND _SDK_PACKAGE_DEPENDS BUILD_ROM_CALLBACK)
+    endif()
+
     add_custom_command(
         OUTPUT ${_SDK_STAMP}
-        COMMAND ${Python3_EXECUTABLE} ${ROOT_DIR}/build.py pack_ws63_sdk
         COMMAND ${CMAKE_COMMAND} -E touch ${_SDK_STAMP}
-        WORKING_DIRECTORY ${ROOT_DIR}
-        BYPRODUCTS ${OUTPUT_ROOT}/package/ws63/sdk
+        DEPENDS ${_SDK_PACKAGE_DEPENDS}
         VERBATIM
     )
     add_custom_target(sdk-package DEPENDS ${_SDK_STAMP})

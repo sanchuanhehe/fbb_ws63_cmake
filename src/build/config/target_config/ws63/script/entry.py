@@ -63,22 +63,23 @@ def do_cmd(target_name: str, hook_name: str, env: Dict[str, Any])->bool:
     target_array = ['ws63-flashboot', 'ws63-loaderboot']
  
     if not "sdk_ws63" in all_target and target_name not in target_array and hook_name == 'build_pre':
+        cmake_build = os.path.join(root_path, 'build', 'script', 'cmake_build.py')
         if '-c' in par_list:
             print("flashboot start build .....")
-            errcode = exec_shell([python_path, 'build.py', '-c', 'ws63-flashboot'], None, True)
+            errcode = exec_shell([python_path, cmake_build, '-c', 'ws63-flashboot'], None, True)
             if errcode != 0:
                 return False
             print("loaderboot start build .....")
-            errcode = exec_shell([python_path, 'build.py', '-c', 'ws63-loaderboot'], None, True)
+            errcode = exec_shell([python_path, cmake_build, '-c', 'ws63-loaderboot'], None, True)
             if errcode != 0:
                 return False
         else:
             print("flashboot start build .....")
-            errcode = exec_shell([python_path, 'build.py', 'ws63-flashboot'], None, True)
+            errcode = exec_shell([python_path, cmake_build, 'ws63-flashboot'], None, True)
             if errcode != 0:
                 return False
             print("loaderboot start build .....")
-            errcode = exec_shell([python_path, 'build.py', 'ws63-loaderboot'], None, True)
+            errcode = exec_shell([python_path, cmake_build, 'ws63-loaderboot'], None, True)
             if errcode != 0:
                 return False
     
@@ -97,7 +98,7 @@ def do_cmd(target_name: str, hook_name: str, env: Dict[str, Any])->bool:
             print("===========================build custom target  end ========================================")
 
     if target_name == 'ws63-liteos-mfg' and hook_name == 'build_post':
-        errcode = exec_shell([python_path, "build.py", "ws63-liteos-app"], None, True)
+        errcode = exec_shell([python_path, os.path.join(root_path, 'build', 'script', 'cmake_build.py'), "ws63-liteos-app"], None, True)
         return True
 
     if hook_name != 'build_post':
@@ -205,7 +206,7 @@ def config_check(root_path, target_name):
 def build_sdk():
     if os.path.isdir(output_root):
         shutil.rmtree(output_root)
-    errcode = exec_shell(["python3", "build.py", "pack_ws63_sdk"], None, True)
+    errcode = exec_shell(["python3", "build/script/cmake_build.py", "pack_ws63_sdk"], None, True)
     if errcode != 0:
         print(f"build target pack_ws63_sdk  failed!")
         sys.exit(1)
@@ -236,7 +237,7 @@ def guard_sample(target_name, env):
         if not os.path.isfile(cfg_full_path):
             continue
         shutil.copyfile(cfg_full_path, base_cfg_path)
-        errcode = exec_shell(["python3", "build.py", "-c", build_target], None, True)
+        errcode = exec_shell(["python3", "build/script/cmake_build.py", "-c", build_target], None, True)
         if errcode != 0:
             print(f"build target:{target_name}\tusing menuconfig:{cfg_full_path} failed!")
             build_result_content.append(f"[ERROR] build target:{target_name}\tusing menuconfig:{cfg_full_path} failed!")
