@@ -3,9 +3,23 @@
 # Copyright (c) HiSilicon (Shanghai) Technologies Co., Ltd.. 2023. All rights reserved.
 #===============================================================================
 set(COMPONENT_NAME "bt_app")
-set(BTA_RAM_LIST  "" CACHE INTERNAL "" FORCE)
-set(BTH_PUBLIC_HDR_LIST  "" CACHE INTERNAL "" FORCE)
-set(BTH_PRIVATE_HDR_LIST  "" CACHE INTERNAL "" FORCE)
+
+function(bt_get_property_or_var out_var property_name fallback_var)
+    get_property(_value GLOBAL PROPERTY ${property_name})
+    if((NOT DEFINED _value OR "${_value}" STREQUAL "") AND DEFINED ${fallback_var})
+        set(_value "${${fallback_var}}")
+    endif()
+    set(${out_var} "${_value}" PARENT_SCOPE)
+endfunction()
+
+macro(bt_reset_shared_list list_name)
+    set_property(GLOBAL PROPERTY ${list_name} "")
+    set(${list_name} "")
+endmacro()
+
+bt_reset_shared_list(BTA_RAM_LIST)
+bt_reset_shared_list(BTH_PUBLIC_HDR_LIST)
+bt_reset_shared_list(BTH_PRIVATE_HDR_LIST)
 
 if(${CHIP} MATCHES "ws63|bs20|bs21|bs21e|bs21a|bs22|bs26") # 单双核差异
     add_subdirectory_if_exist(dft)
@@ -18,7 +32,11 @@ else()
 endif()
 
 # for sdk closed_component compile
-if("${BTA_RAM_LIST}" STREQUAL "")
+bt_get_property_or_var(BTA_RAM_LIST_RESOLVED BTA_RAM_LIST BTA_RAM_LIST)
+bt_get_property_or_var(BTH_PUBLIC_HDR_LIST_RESOLVED BTH_PUBLIC_HDR_LIST BTH_PUBLIC_HDR_LIST)
+bt_get_property_or_var(BTH_PRIVATE_HDR_LIST_RESOLVED BTH_PRIVATE_HDR_LIST BTH_PRIVATE_HDR_LIST)
+
+if("${BTA_RAM_LIST_RESOLVED}" STREQUAL "")
     if(DEFINED CONFIG_SLE_BLE_SUPPORT AND SUPPORT_MULTI_LIBS IN_LIST DEFINES)
         set(LIBS ${CMAKE_CURRENT_SOURCE_DIR}/${CHIP}-${CONFIG_SLE_BLE_SUPPORT}/lib${COMPONENT_NAME}.a)
     elseif(DEFINED CONFIG_SUPPORT_SLE_BLE_CENTRAL_DEFAULT)
@@ -28,7 +46,7 @@ if("${BTA_RAM_LIST}" STREQUAL "")
     endif()
 else()
     set(SOURCES
-        ${BTA_RAM_LIST}
+        ${BTA_RAM_LIST_RESOLVED}
     )
     set(LOG_DEF
         ${CMAKE_CURRENT_SOURCE_DIR}/../bg_common/include/log/log_def_sdk_bth.h
@@ -36,14 +54,14 @@ else()
 endif()
 if(${CHIP} MATCHES "ws53|ws63|bs20|bs21|bs21e|bs21a|bs22|bs26|bs25")
     set(PUBLIC_HEADER
-        ${BTH_PUBLIC_HDR_LIST}
+        ${BTH_PUBLIC_HDR_LIST_RESOLVED}
         ${CMAKE_CURRENT_SOURCE_DIR}/host/inc
         ${CMAKE_CURRENT_SOURCE_DIR}/include/ble
         ${CMAKE_CURRENT_SOURCE_DIR}/include/ble/L0
     )
 else()
     set(PUBLIC_HEADER
-        ${BTH_PUBLIC_HDR_LIST}
+        ${BTH_PUBLIC_HDR_LIST_RESOLVED}
         ${CMAKE_CURRENT_SOURCE_DIR}/host/inc
         ${CMAKE_CURRENT_SOURCE_DIR}/include/ble
         ${CMAKE_CURRENT_SOURCE_DIR}/include/ble/L0
@@ -53,7 +71,7 @@ endif()
 
 set(PRIVATE_HEADER
     ${PRIVATE_HEADER}
-    ${BTH_PRIVATE_HDR_LIST}
+    ${BTH_PRIVATE_HDR_LIST_RESOLVED}
     ${CMAKE_CURRENT_SOURCE_DIR}/../bg_common/include/ipc
 )
 

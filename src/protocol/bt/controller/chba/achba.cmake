@@ -5,10 +5,27 @@
 set(MODULE_NAME "bt")
 set(AUTO_DEF_FILE_ID FALSE)
 set(COMPONENT_NAME "achba")
-set(CHBA_NETDEV_LIST  "" CACHE INTERNAL "" FORCE)
-set(CHBA_NETDEV_HEADER_LIST  "" CACHE INTERNAL "" FORCE)
+
+function(chba_get_property_or_var out_var property_name fallback_var)
+    get_property(_value GLOBAL PROPERTY ${property_name})
+    if((NOT DEFINED _value OR "${_value}" STREQUAL "") AND DEFINED ${fallback_var})
+        set(_value "${${fallback_var}}")
+    endif()
+    set(${out_var} "${_value}" PARENT_SCOPE)
+endfunction()
+
+macro(chba_reset_shared_list list_name)
+    set_property(GLOBAL PROPERTY ${list_name} "")
+    set(${list_name} "")
+endmacro()
+
+chba_reset_shared_list(CHBA_NETDEV_LIST)
+chba_reset_shared_list(CHBA_NETDEV_HEADER_LIST)
 
 add_subdirectory_if_exist(achba)
+
+chba_get_property_or_var(ACHBA_LIST_RESOLVED ACHBA_LIST ACHBA_LIST)
+chba_get_property_or_var(ACHBA_HEADER_LIST_RESOLVED ACHBA_HEADER_LIST ACHBA_HEADER_LIST)
 
 set(PUBLIC_DEFINES
     ACHBA_SUPPORT
@@ -30,16 +47,16 @@ set(MAIN_COMPONENT
     false
 )
 
-if("${ACHBA_LIST}" STREQUAL "")
-    set(ACHBA_LIST "__null__")
+if("${ACHBA_LIST_RESOLVED}" STREQUAL "")
+    set(ACHBA_LIST_RESOLVED "__null__")
 endif()
 
 set(SOURCES
-    ${ACHBA_LIST}
+    ${ACHBA_LIST_RESOLVED}
 )
 
 set(PUBLIC_HEADER
-    ${ACHBA_HEADER_LIST}
+    ${ACHBA_HEADER_LIST_RESOLVED}
 )
 
 set(PRIVATE_HEADER
@@ -49,7 +66,7 @@ set(PRIVATE_HEADER
     ${ROOT_DIR}/open_source/lwip/lwip_v2.1.3/src/include/
     ${ROOT_DIR}/open_source/lwip/lwip_adapt/src/include/
     ${ROOT_DIR}/middleware/utils/common_headers/osal/
-    ${ACHBA_HEADER_LIST}
+    ${ACHBA_HEADER_LIST_RESOLVED}
 )
 
 set(LIB_OUT_PATH ${BIN_DIR}/${CHIP}/libs/bluetooth/chba/${TARGET_COMMAND})

@@ -15,7 +15,13 @@ set(
     ${CMAKE_CURRENT_SOURCE_DIR}/ahi_bta/inc
 )
 
-set(BTH_PUBLIC_HDR_LIST "${BTH_PUBLIC_HDR_LIST}" "${bts_ram_src_list}" CACHE INTERNAL "bt ram obj list" FORCE)
+get_property(_bth_public_hdr_list GLOBAL PROPERTY BTH_PUBLIC_HDR_LIST)
+if((NOT DEFINED _bth_public_hdr_list OR "${_bth_public_hdr_list}" STREQUAL "") AND DEFINED BTH_PUBLIC_HDR_LIST)
+    set(_bth_public_hdr_list "${BTH_PUBLIC_HDR_LIST}")
+endif()
+list(APPEND _bth_public_hdr_list ${bts_ram_src_list})
+set_property(GLOBAL PROPERTY BTH_PUBLIC_HDR_LIST "${_bth_public_hdr_list}")
+set(BTH_PUBLIC_HDR_LIST "${_bth_public_hdr_list}")
 
 ######################################### service start ######################################
 
