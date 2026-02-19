@@ -258,6 +258,7 @@ if(DEFINED FBB_TARGET AND NOT "${FBB_TARGET}" STREQUAL "")
         set(_FWPKG_OUT_DIR "${OUTPUT_ROOT}/${CHIP}/fwpkg/${PKG_TARGET_NAME}")
         set(_FWPKG_ALL "${_FWPKG_OUT_DIR}/${PKG_TARGET_NAME}_all.fwpkg")
         set(_FWPKG_LOAD_ONLY "${_FWPKG_OUT_DIR}/${PKG_TARGET_NAME}_load_only.fwpkg")
+        set(_FWPKG_MANIFEST "${_FWPKG_OUT_DIR}/${PKG_TARGET_NAME}_packet_manifest.json")
         add_custom_command(
             OUTPUT ${_FWPKG_ALL} ${_FWPKG_LOAD_ONLY}
             COMMAND ${CMAKE_COMMAND} -E env
@@ -265,10 +266,11 @@ if(DEFINED FBB_TARGET AND NOT "${FBB_TARGET}" STREQUAL "")
                     FBB_CHIP=${CHIP}
                     FBB_CORE=${CORE}
                 FBB_PACKET_INPUT_MANIFEST=${_PREPACKAGE_BOOT_MANIFEST}
+                FBB_PACKET_OUTPUT_MANIFEST=${_FWPKG_MANIFEST}
                     ${Python3_EXECUTABLE} ${ROOT_DIR}/tools/pkg/packet.py ${CHIP} ${PKG_TARGET_NAME} "${FBB_EXTRA_DEFINES}"
             WORKING_DIRECTORY ${ROOT_DIR}
             DEPENDS ${_FWPKG_DEPS} ${ROOT_DIR}/tools/pkg/packet.py ${ROOT_DIR}/tools/pkg/chip_packet/ws63/packet.py
-            BYPRODUCTS ${OUTPUT_ROOT}/${CHIP}/fwpkg
+            BYPRODUCTS ${OUTPUT_ROOT}/${CHIP}/fwpkg ${_FWPKG_MANIFEST}
             VERBATIM
         )
         add_custom_target(package-fwpkg DEPENDS ${_FWPKG_ALL} ${_FWPKG_LOAD_ONLY})

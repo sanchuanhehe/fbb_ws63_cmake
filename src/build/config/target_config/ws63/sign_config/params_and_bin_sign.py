@@ -4,6 +4,7 @@ import sys
 import shutil
 import platform
 import json
+import argparse
 
 
 file_dir = os.path.dirname(os.path.realpath(__file__))
@@ -20,10 +21,45 @@ if "windows" in platform.platform().lower():
     sign_tool = "../../../../../tools/bin/sign_tool/sign_tool_pltuni.exe"
 else:
     sign_tool = "../../../../../tools/bin/sign_tool/sign_tool_pltuni"
-target_name = sys.argv[1] if len(sys.argv) > 1 else ""
-chip = os.environ.get("FBB_CHIP", "ws63").strip() or "ws63"
-core = os.environ.get("FBB_CORE", "acore").strip() or "acore"
-fbb_output_root = os.environ.get("FBB_OUTPUT_ROOT", "").strip()
+
+
+def _parse_args():
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("target_name", nargs="?", default="")
+    parser.add_argument("--target-name", dest="target_name_opt", default="")
+    parser.add_argument("--chip", default="")
+    parser.add_argument("--core", default="")
+    parser.add_argument("--output-root", default="")
+    parser.add_argument("--input-manifest", default="")
+    parser.add_argument("--output-manifest", default="")
+    args, _ = parser.parse_known_args()
+    return args
+
+
+def _load_manifest_inputs(manifest_file_path):
+    if not manifest_file_path or not os.path.isfile(manifest_file_path):
+        return []
+    inputs = [os.path.abspath(manifest_file_path)]
+    try:
+        with open(manifest_file_path, "r", encoding="utf-8") as mf:
+            data = json.load(mf)
+    except (OSError, ValueError, TypeError):
+        return inputs
+    for field in ("outputs", "produced_files", "produced_bins"):
+        values = data.get(field, [])
+        if isinstance(values, list):
+            for item in values:
+                if isinstance(item, str) and os.path.exists(item):
+                    inputs.append(os.path.abspath(item))
+    return sorted(set(inputs))
+
+
+args = _parse_args()
+target_name = args.target_name_opt or args.target_name
+chip = args.chip or (os.environ.get("FBB_CHIP", "ws63").strip() or "ws63")
+core = args.core or (os.environ.get("FBB_CORE", "acore").strip() or "acore")
+fbb_output_root = args.output_root or os.environ.get("FBB_OUTPUT_ROOT", "").strip()
+input_manifest = args.input_manifest or os.environ.get("FBB_SIGN_INPUT_MANIFEST", "").strip()
 
 if fbb_output_root:
     chip_root = os.path.join(os.path.abspath(fbb_output_root), chip)
@@ -43,7 +79,7 @@ for _candidate in inter_bin_candidates:
         break
 
 default_manifest = os.path.join(out_put, "sign_manifest", f"{target_name}.json")
-manifest_path = os.path.abspath(os.environ.get("FBB_SIGN_MANIFEST", default_manifest))
+manifest_path = os.path.abspath(args.output_manifest or os.environ.get("FBB_SIGN_MANIFEST", default_manifest))
 efuse_csv = "../script/efuse.csv"
 boot_bin = os.path.join(out_put, "boot_bin")
 mfg_bin = "../../../../../application/ws63/ws63_liteos_mfg"
@@ -432,9 +468,15 @@ if os.path.isfile(os.path.join(out_put, "nv_bin", "ws63_all_nv_factory.bin")):
 
 os.makedirs(os.path.dirname(manifest_path), exist_ok=True)
 manifest_data = {
+    "schema_version": "fbb.stage-manifest.v1",
+    "stage": "ws63.sign",
     "target": target_name,
     "chip": chip,
     "core": core,
+    "inputs": sorted(set(_load_manifest_inputs(input_manifest))),
+    "command": sys.argv,
+    "success": True,
+    "exit_code": 0,
     "output_root": out_put,
     "pktbin": pktbin,
     "outputs": sorted(generated_outputs)

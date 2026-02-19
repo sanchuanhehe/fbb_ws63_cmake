@@ -24,10 +24,10 @@ from enviroment import TargetEnvironment
 from utils.indie_upgrade_utils import check_indie_upg_match
 
 class upg_base_info:
-    def __init__(self):
+    def __init__(self, chip_override="", output_root_override=""):
         self.root_path = g_root
-        self.chip = os.environ.get("FBB_CHIP", "ws63").strip() or "ws63"
-        fbb_output_root = os.environ.get("FBB_OUTPUT_ROOT", "").strip()
+        self.chip = chip_override or (os.environ.get("FBB_CHIP", "ws63").strip() or "ws63")
+        fbb_output_root = output_root_override or os.environ.get("FBB_OUTPUT_ROOT", "").strip()
         if fbb_output_root:
             self.output_root = os.path.abspath(fbb_output_root)
             self.output = os.path.join(self.output_root, self.chip)
@@ -133,12 +133,37 @@ def get_old_image(input_param, info):
 def get_parameters():
     parser = argparse.ArgumentParser()
 
+    parser.add_argument('target_name', nargs='?', default='')
+    parser.add_argument('pkt_positional', nargs='?', default='')
+
     parser.add_argument('--pkt', type=str, default = 'app',
                         help='需要生成的镜像,包括: app,boot,nv')
     parser.add_argument('--ver', type=str, default = '',
                         help='版本号')
+    parser.add_argument('--chip', type=str, default='')
+    parser.add_argument('--output-root', type=str, default='')
+    parser.add_argument('--input-manifest', type=str, default='')
+    parser.add_argument('--output-manifest', type=str, default='')
     config, unknown = parser.parse_known_args()
     return config
+
+
+def _load_manifest_inputs(manifest_path):
+    if not manifest_path or not os.path.isfile(manifest_path):
+        return []
+    inputs = [os.path.abspath(manifest_path)]
+    try:
+        with open(manifest_path, "r", encoding="utf-8") as mf:
+            data = json.load(mf)
+    except (OSError, ValueError, TypeError):
+        return inputs
+    for field in ("outputs", "produced_files", "produced_bins"):
+        values = data.get(field, [])
+        if isinstance(values, list):
+            for item in values:
+                if isinstance(item, str) and os.path.exists(item):
+                    inputs.append(os.path.abspath(item))
+    return sorted(set(inputs))
 
 # 打包签名加密前的原镜像
 def make_pkt(info, input_param):
@@ -162,8 +187,12 @@ def make_pkt(info, input_param):
         print("make_pkt shell cmd", cmd, ", err: ", ret.returncode)
 
 if __name__ == '__main__':
-    info = upg_base_info()
     conf = get_parameters()
+    chip = conf.chip or (os.environ.get("FBB_CHIP", "ws63").strip() or "ws63")
+    output_root = conf.output_root or os.environ.get("FBB_OUTPUT_ROOT", "").strip()
+    info = upg_base_info(chip_override=chip, output_root_override=output_root)
+    if conf.pkt_positional:
+        conf.pkt = conf.pkt_positional
     print("update param: ", conf)
     input_param = conf.pkt.split(",")
     if not check_bin_match(input_param, info):
@@ -183,7 +212,7 @@ if __name__ == '__main__':
     begin(conf)
     make_pkt(info, input_param)
 
-    manifest_path = os.environ.get("FBB_FOTA_MANIFEST", "").strip()
+    manifest_path = conf.output_manifest or os.environ.get("FBB_FOTA_MANIFEST", "").strip()
     if manifest_path:
         os.makedirs(os.path.dirname(os.path.abspath(manifest_path)), exist_ok=True)
         produced_files = []
@@ -195,9 +224,22 @@ if __name__ == '__main__':
                     if name.endswith((".fwpkg", ".upg", ".zip", ".bin")):
                         produced_files.append(os.path.abspath(os.path.join(root, name)))
         produced_files = sorted(set(produced_files))
+        input_files = []
+        input_files.extend(_load_manifest_inputs(conf.input_manifest or os.environ.get("FBB_FOTA_INPUT_MANIFEST", "").strip()))
+        for candidate in [info.fota_cfg, info.flashboot, info.app_bin, info.nv_bin]:
+            if os.path.isfile(candidate):
+                input_files.append(os.path.abspath(candidate))
         with open(manifest_path, "w", encoding="utf-8") as manifest_file:
             json.dump({
+                "schema_version": "fbb.stage-manifest.v1",
+                "stage": "ws63.fota",
+                "target": conf.target_name,
                 "chip": info.chip,
+                "inputs": sorted(set(input_files)),
+                "command": sys.argv,
+                "outputs": produced_files,
+                "success": True,
+                "exit_code": 0,
                 "output_root": os.path.abspath(info.output_root),
                 "upg_output": os.path.abspath(info.upg_output),
                 "packet": conf.pkt,

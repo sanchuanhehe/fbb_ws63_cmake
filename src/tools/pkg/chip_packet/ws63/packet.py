@@ -78,7 +78,22 @@ def make_all_in_one_packet(pack_style_str, extr_defines):
     core = os.environ.get("FBB_CORE", "acore").strip() or "acore"
     caller_output_root = os.environ.get("FBB_OUTPUT_ROOT", "").strip()
     packet_manifest = os.environ.get("FBB_PACKET_INPUT_MANIFEST", "").strip()
+    packet_output_manifest = os.environ.get("FBB_PACKET_OUTPUT_MANIFEST", "").strip()
     manifest_outputs = _load_manifest_outputs(packet_manifest)
+    input_files = []
+    output_files = []
+
+    def add_input(path):
+        if path and os.path.isfile(path):
+            apath = os.path.abspath(path)
+            if apath not in input_files:
+                input_files.append(apath)
+
+    def add_output(path):
+        if path and os.path.isfile(path):
+            apath = os.path.abspath(path)
+            if apath not in output_files:
+                output_files.append(apath)
 
     legacy_chip_root = os.path.join(SDK_DIR, "output", chip)
     legacy_acore_root = os.path.join(legacy_chip_root, core)
@@ -99,30 +114,37 @@ def make_all_in_one_packet(pack_style_str, extr_defines):
 
     # loader boot
     loadboot_bin = manifest_outputs.get("root_loaderboot_sign.bin", os.path.join(boot_bin_dir, "root_loaderboot_sign.bin"))
+    add_input(loadboot_bin)
     loadboot_bx = loadboot_bin + "|0x0|0x200000|0"
 
     # secure stage boot
     ssb_bin = manifest_outputs.get("ssb_sign.bin", os.path.join(boot_bin_dir, "ssb_sign.bin"))
+    add_input(ssb_bin)
     ssb_bx = ssb_bin + f"|0x202000|{hex(get_file_size(ssb_bin))}|1"
 
     # flash boot
     flashboot_bin = manifest_outputs.get("flashboot_sign.bin", os.path.join(boot_bin_dir, "flashboot_sign.bin"))
+    add_input(flashboot_bin)
     flashboot_bx = flashboot_bin + f"|0x220000|{hex(get_file_size(flashboot_bin))}|1"
 
     # flash boot backup
     flashboot_backup_bin = manifest_outputs.get("flashboot_backup_sign.bin", os.path.join(boot_bin_dir, "flashboot_backup_sign.bin"))
+    add_input(flashboot_backup_bin)
     flashboot_backup_bx = flashboot_backup_bin + f"|0x210000|{hex(get_file_size(flashboot_backup_bin))}|1"
 
     # params
     params_bin = manifest_outputs.get("root_params_sign.bin", os.path.join(param_bin_dir, "root_params_sign.bin"))
+    add_input(params_bin)
     params_bx = params_bin + f"|0x200000|{hex(get_file_size(params_bin))}|1"
 
     # nv
     nv_bin = manifest_outputs.get("ws63_all_nv.bin", os.path.join(nv_bin_dir, "ws63_all_nv.bin"))
+    add_input(nv_bin)
     nv_bx = nv_bin + f"|0x5FC000|0x4000|1"
 
     # nv backup
     nv_backup_bin = manifest_outputs.get("ws63_all_nv_factory.bin", os.path.join(nv_bin_dir, "ws63_all_nv_factory.bin"))
+    add_input(nv_backup_bin)
     nv_backup_bx = nv_backup_bin + f"|0x20C000|0x4000|1"
 
     # hilink
@@ -144,6 +166,7 @@ def make_all_in_one_packet(pack_style_str, extr_defines):
 
     # efuse bin
     efuse_bin = manifest_outputs.get("efuse_cfg.bin", os.path.join(efuse_bin_dir, "efuse_cfg.bin"))
+    add_input(efuse_bin)
     efuse_bx = efuse_bin + "|0x0|0x200000|3"
 
     # app and rom
@@ -310,6 +333,7 @@ def make_all_in_one_packet(pack_style_str, extr_defines):
             packet_post_agvs.append(mfg_bx)
             fpga_fwpkg = os.path.join(fwpkg_outdir, f"{pack_style_str}_all.fwpkg")
             packet_bin(fpga_fwpkg, packet_post_agvs)
+            add_output(fpga_fwpkg)
             return
 
         packet_post_agvs = list()
@@ -355,9 +379,11 @@ def make_all_in_one_packet(pack_style_str, extr_defines):
                 if double_fwpkg:
                     fpga_fwpkg = os.path.join(fwpkg_outdir, f"{pack_style_str}_mfg_all.fwpkg")
                     packet_bin(fpga_fwpkg, packet_post_agvs)
+                    add_output(fpga_fwpkg)
                 else:
                     fpga_fwpkg = os.path.join(fwpkg_outdir, f"{pack_style_str}_all.fwpkg")
-                    packet_bin(fpga_fwpkg, packet_post_agvs)                   
+                    packet_bin(fpga_fwpkg, packet_post_agvs)
+                    add_output(fpga_fwpkg)
             else:
                 print("warning: don't find ws63-liteos-mfg-sign.bin...")
         else:
@@ -371,17 +397,40 @@ def make_all_in_one_packet(pack_style_str, extr_defines):
         packet_post_agvs.append(app_bx)
         fpga_loadapp_only_fwpkg = os.path.join(fwpkg_outdir, f"{pack_style_str}_load_only.fwpkg")
         packet_bin(fpga_loadapp_only_fwpkg, packet_post_agvs)
+        add_output(fpga_loadapp_only_fwpkg)
 
         if "windows" in platform.system().lower():
             pktbin_base = _first_existing([root for root in chip_roots if os.path.isdir(os.path.join(root, "pktbin"))] + chip_roots)
             os.chdir(pktbin_base)
             if os.path.isdir('./pktbin'):
                 create_tar('./pktbin', 'pktbin.zip')
+                add_output(os.path.join(pktbin_base, 'pktbin.zip'))
         else:
             print("not windows.")
             pktbin_base = _first_existing([root for root in chip_roots if os.path.isdir(os.path.join(root, "pktbin"))] + chip_roots)
             if os.path.isdir(os.path.join(pktbin_base, "pktbin")):
                 subprocess.run(["tar", "-cf", "pktbin.zip", "./pktbin"], cwd=pktbin_base)
+                add_output(os.path.join(pktbin_base, 'pktbin.zip'))
+
+        if packet_output_manifest:
+            os.makedirs(os.path.dirname(os.path.abspath(packet_output_manifest)), exist_ok=True)
+            manifest_inputs = list(input_files)
+            if packet_manifest and os.path.isfile(packet_manifest):
+                manifest_inputs.append(os.path.abspath(packet_manifest))
+            with open(packet_output_manifest, "w", encoding="utf-8") as mf:
+                json.dump({
+                    "schema_version": "fbb.stage-manifest.v1",
+                    "stage": "ws63.packet",
+                    "target": pack_style_str,
+                    "chip": chip,
+                    "core": core,
+                    "inputs": sorted(set(manifest_inputs)),
+                    "command": sys.argv,
+                    "outputs": sorted(set(output_files)),
+                    "success": True,
+                    "exit_code": 0,
+                    "fwpkg_outdir": os.path.abspath(fwpkg_outdir)
+                }, mf, ensure_ascii=False, indent=2)
 
 def is_pack_double_fwpkg(pack_style_str, extr_defines):
     if 'SDK_VERSION=' in extr_defines and 'SDK_VERSION="1.10.T0"' not in extr_defines and pack_style_str == 'ws63-liteos-app':
